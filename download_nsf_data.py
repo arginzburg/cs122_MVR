@@ -55,11 +55,10 @@ soup = get_soup_from_url(url)
 link_list = get_data_links(soup, url)
 
 zip_file_path = '/home/student/cs122_MVR/data/nsf/temp'
-tmp_link = link_list[4]
 
-print('Downloading: ' + tmp_link)
-(zip_file, headers) = download_zipfile(tmp_link, zip_file_path)
-
-print('Extracting zipfile: ' + zip_file)
-data_file = zip_file.replace('temp', '')
-extract_zipfile(zip_file, data_file)
+for tmp_link in link_list[0:5]: # <-------------------- Download 5 most recent years
+    print('Downloading: ' + tmp_link)
+    (zip_file, headers) = download_zipfile(tmp_link, zip_file_path)
+    print('Extracting zipfile: ' + zip_file)
+    data_file = zip_file.replace('temp', '')
+    extract_zipfile(zip_file, data_file)

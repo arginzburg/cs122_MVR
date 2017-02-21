@@ -53,7 +53,9 @@ def parse_subdivided_tag(tag, award_dict):
     sub_dict = {}
     child_tags = tag.findChildren()
     for child in child_tags:
-        sub_dict[child.name] = child.text.strip()
+        value = child.text.strip()
+        if len(value) > 0:
+            sub_dict[child.name] = value
     tmp_list.append(sub_dict)
     award_dict[tag.name] = tmp_list
 
@@ -87,7 +89,7 @@ def init_db(db_filename):
                       city text,
                       state text,
                       state_code char(2),
-                      zipcode int,
+                      zipcode text,
                       country text,
                       constraint fk_institutions foreign key (award_id)
                       references awards (award_id));''')
@@ -102,12 +104,14 @@ def init_db(db_filename):
 
 
 def add_award_to_db(award, c):
-    award_id = award.get('awardid', None)
-    title = award.get('awardtitle', None).lower().strip()
-    abstract = award.get('abstractnarration', None).lower().strip()
-    amount = award.get('awardamount', None)
-    start_date = award.get('awardeffectivedate', None)
-    end_date = award.get('awardexpirationdate', None)
+    award_id = int(award.get('awardid', None))
+    title = award.get('awardtitle', '').\
+            lower().replace('\'', '').replace('\"', '')
+    abstract = award.get('abstractnarration', '').\
+               lower().replace('\'', '').replace('\"', '')
+    amount = int(award.get('awardamount', None))
+    start_date = award.get('awardeffectivedate', '')
+    end_date = award.get('awardexpirationdate', '')
 
     c.execute('''INSERT OR REPLACE INTO awards (award_id, title, abstract,
                                                 amount, start_date, end_date)
@@ -115,10 +119,10 @@ def add_award_to_db(award, c):
                  award_id, title, abstract, amount, start_date, end_date))
 
     for inv in award.get('investigator', []):
-        first_name = inv.get('firstname', None)
-        last_name = inv.get('lastname', None)
-        email = inv.get('emailaddress', None)
-        role = inv.get('rolecode', None)
+        first_name = inv.get('firstname', '').replace('\'', '').replace('\"', '')
+        last_name = inv.get('lastname', '').replace('\'', '').replace('\"', '')
+        email = inv.get('emailaddress', '').replace('\'', '').replace('\"', '')
+        role = inv.get('rolecode', '').replace('\'', '').replace('\"', '')
 
         c.execute('''INSERT OR REPLACE INTO investigators (award_id, last_name,
                      first_name, role, email)
@@ -126,26 +130,22 @@ def add_award_to_db(award, c):
                      award_id, last_name, first_name, role, email))
 
     for inst in award.get('institution', []):
-        name = inst.get('name', None)
-        city = inst.get('cityname', None)
-        state = inst.get('statename', None)
-        state_code = inst.get('statecode', None)
-        zipcode = inst.get('zipcode', None)
-        country = inst.get('countryname', None)
+        name = inst.get('name', '').replace('\'', '').replace('\"', '')
+        city = inst.get('cityname', '').replace('\'', '').replace('\"', '')
+        state = inst.get('statename', '').replace('\'', '').replace('\"', '')
+        state_code = inst.get('statecode', '').replace('\'', '').replace('\"', '')
+        zipcode = inst.get('zipcode', '').replace('\'', '').replace('\"', '')
+        country = inst.get('countryname', '').replace('\'', '').replace('\"', '')
 
         c.execute('''INSERT OR REPLACE INTO institutions (award_id, name,
                      city, state, state_code, zipcode, country)
-                     VALUES ({}, "{}", "{}", "{}", "{}", {}, "{}");'''.format(
+                     VALUES ({}, "{}", "{}", "{}", "{}", "{}", "{}");'''.format(
                      award_id, name, city, state, state_code, zipcode, country))
 
     for org in award.get('organization', []):
         organization_code = org.get('code', None)
         directorate = org.get('directorate', None)
         division = org.get('division', None)
-
-        print(organization_code)
-        print(directorate)
-        print(division)
 
         c.execute('''INSERT OR REPLACE INTO organizations (award_id,
                      organization_code, directorate, division)
@@ -157,20 +157,23 @@ def add_award_to_db(award, c):
 # Run script
 ##############################################################################
 
-data_path = 'data/nsf/2016/'
 db_filename = 'nsf.db'
-
 (conn, c) = init_db(db_filename)
 
-xml_list = get_list_of_xml_filenames(data_path)
+years = [2013, 2014, 2015, 2016, 2017]
 
-soup = get_soup_from_xml_filename(xml_list[0])
-a = parse_soup(soup)
-for key in a.keys():
-    print(key + ' <><><> ' + str(a[key]))
-    print('')
+for year in years:
 
-add_award_to_db(a, c)
+    data_path = 'data/nsf/{}/'.format(year)
+
+    xml_list = get_list_of_xml_filenames(data_path)
+
+    print('Processing path: ' + data_path)
+    for xml_file in xml_list:
+        soup = get_soup_from_xml_filename(xml_file)
+        award_dict = parse_soup(soup)
+        add_award_to_db(award_dict, c)
+    print('Completed path: ' + data_path)
 
 conn.commit() # Save database
 conn.close() # Close database
