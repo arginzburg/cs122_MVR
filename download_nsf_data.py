@@ -1,4 +1,9 @@
+# Code to download archived NSF data (XML files) from the web
+#
+# Mark Saddler
+#
 
+import os
 import requests
 import bs4
 import urllib
@@ -34,7 +39,15 @@ def download_zipfile(url, zip_file_path):
     else:
         print('Incompatible download link')
         return None
-    # Returns tuple: (fl_fn, headers)
+    # Returns tuple: (dl_fn, headers)
+
+
+def extract_zipfile(zipped_directory, output_directory):
+    z = zipfile.ZipFile(zipped_directory, 'r')
+    z.extractall(output_directory)
+    z.close()
+    os.remove(zipped_directory)
+
 
 
 url = 'https://www.nsf.gov/awardsearch/download.jsp'
@@ -42,6 +55,11 @@ soup = get_soup_from_url(url)
 link_list = get_data_links(soup, url)
 
 zip_file_path = '/home/student/cs122_MVR/data/nsf/temp'
-tmp_link = link_list[0]
+tmp_link = link_list[4]
+
+print('Downloading: ' + tmp_link)
 (zip_file, headers) = download_zipfile(tmp_link, zip_file_path)
-print(zip_file)
+
+print('Extracting zipfile: ' + zip_file)
+data_file = zip_file.replace('temp', '')
+extract_zipfile(zip_file, data_file)

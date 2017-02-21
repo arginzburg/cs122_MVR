@@ -43,7 +43,6 @@ def parse_soup(soup):
         elif tag.name in subdivided_tags:
             parse_subdivided_tag(tag, award)
         else:
-            print('Lonely tag = ' + tag.name + ' = ' + tag.text)
             award[tag.name] = tag.text.strip()
         tag = tag.next_sibling.next_sibling
     return award
@@ -73,7 +72,7 @@ def init_db(db_filename):
                      amount int,
                      start_date char(10),
                      end_date char(10),
-                     constraint pk_awards primary key (award_id))''')
+                     constraint pk_awards primary key (award_id));''')
         c.execute('''CREATE TABLE investigators
                      (award_id int,
                       last_name text,
@@ -81,7 +80,7 @@ def init_db(db_filename):
                       role text,
                       email text,
                       constraint fk_investigators foreign key (award_id)
-                      references awards (award_id))''')
+                      references awards (award_id));''')
         c.execute('''CREATE TABLE institutions
                      (award_id int,
                       name text,
@@ -91,16 +90,67 @@ def init_db(db_filename):
                       zipcode int,
                       country text,
                       constraint fk_institutions foreign key (award_id)
-                      references awards (award_id))''')
+                      references awards (award_id));''')
         c.execute('''CREATE TABLE organizations
                      (award_id int,
                       organization_code int,
                       directorate text,
                       division text,
                       constraint fk_organizations foreign key (award_id)
-                      references awards (award_id))''')
+                      references awards (award_id));''')
     return (conn, c)
 
+
+def add_award_to_db(award, c):
+    award_id = award.get('awardid', None)
+    title = award.get('awardtitle', None).lower().strip()
+    abstract = award.get('abstractnarration', None).lower().strip()
+    amount = award.get('awardamount', None)
+    start_date = award.get('awardeffectivedate', None)
+    end_date = award.get('awardexpirationdate', None)
+
+    c.execute('''INSERT OR REPLACE INTO awards (award_id, title, abstract,
+                                                amount, start_date, end_date)
+                 VALUES ({}, "{}", "{}", {}, "{}", "{}");'''.format(
+                 award_id, title, abstract, amount, start_date, end_date))
+
+    for inv in award.get('investigator', []):
+        first_name = inv.get('firstname', None)
+        last_name = inv.get('lastname', None)
+        email = inv.get('emailaddress', None)
+        role = inv.get('rolecode', None)
+
+        c.execute('''INSERT OR REPLACE INTO investigators (award_id, last_name,
+                     first_name, role, email)
+                     VALUES ({}, "{}", "{}", "{}", "{}");'''.format(
+                     award_id, last_name, first_name, role, email))
+
+    for inst in award.get('institution', []):
+        name = inst.get('name', None)
+        city = inst.get('cityname', None)
+        state = inst.get('statename', None)
+        state_code = inst.get('statecode', None)
+        zipcode = inst.get('zipcode', None)
+        country = inst.get('countryname', None)
+
+        c.execute('''INSERT OR REPLACE INTO institutions (award_id, name,
+                     city, state, state_code, zipcode, country)
+                     VALUES ({}, "{}", "{}", "{}", "{}", {}, "{}");'''.format(
+                     award_id, name, city, state, state_code, zipcode, country))
+
+    for org in award.get('organization', []):
+        organization_code = org.get('code', None)
+        directorate = org.get('directorate', None)
+        division = org.get('division', None)
+
+        print(organization_code)
+        print(directorate)
+        print(division)
+
+        c.execute('''INSERT OR REPLACE INTO organizations (award_id,
+                     organization_code, directorate, division)
+                     VALUES ({}, {}, "{}", "{}");'''.format(
+                     award_id, organization_code, directorate, division))
 
 
 ##############################################################################
@@ -114,9 +164,13 @@ db_filename = 'nsf.db'
 
 xml_list = get_list_of_xml_filenames(data_path)
 
-conn.commit() # Save database
-conn.close() # Close database
-
 soup = get_soup_from_xml_filename(xml_list[0])
 a = parse_soup(soup)
-print(a)
+for key in a.keys():
+    print(key + ' <><><> ' + str(a[key]))
+    print('')
+
+add_award_to_db(a, c)
+
+conn.commit() # Save database
+conn.close() # Close database
