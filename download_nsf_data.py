@@ -14,7 +14,7 @@ import zipfile
 def get_soup_from_url(url):
     request = requests.get(url)
     html = request.text.encode('iso-8859-1')
-    return bs4.BeautifulSoup(html)
+    return bs4.BeautifulSoup(html, "lxml")
 
 
 def get_data_links(soup, url):
