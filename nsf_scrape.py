@@ -78,7 +78,7 @@ def init_db(db_filename):
     create_new_tables = True
     if os.path.isfile(db_filename):
         create_new_tables = False
-    conn = sqlite3.connect('nsf.db')
+    conn = sqlite3.connect(db_filename)
     c = conn.cursor()
     if create_new_tables:
         c.execute('''CREATE TABLE awards

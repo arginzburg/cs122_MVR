@@ -1,104 +1,52 @@
-# Code to download NSF data using advanced search option from the NSF
+# Functions to download NSF data using advanced search option from the NSF
 # Website
 #
-# Mark Saddler
+# Vishok Srikanth, Mark Saddler
 #
 
 import os
-import requests
-import bs4
-import urllib
-import re
-import zipfile
+import time
+import subprocess
+from selenium import webdriver
+from pyvirtualdisplay import Display
 
 
-def get_soup_from_url(url):
-    request = requests.get(url)
-    html = request.text.encode('iso-8859-1')
-    return bs4.BeautifulSoup(html)
-
-
-def get_data_links(soup, url):
+def download_xml_file_from_search_url(search_url, output_xml_fn):
     '''
-    Get all of the url links from the NSF website containing downloadable
-    NSF awards (links correspond to zip files of all awards from a single
-    year)
+    By Vishok Srikanth
     '''
-    data_links = []
-    path_url = url.strip('download.jsp')
-    data_tag_list = soup.find_all('div', class_ = 'downloadcontent')
-    for data_tag in data_tag_list:
-        link_tag_list = data_tag.find_all('a', {'href' : True})
-        for link_tag in link_tag_list:
-            link = link_tag['href']
-            data_links.append(path_url + link)
-    return data_links
+    display = Display(visible=0, size=(800, 600))
+    display.start()
+    
+    driver = webdriver.Chrome()
+    driver.get(search_url)
+    # Wait long enough for the page to finish loading elements. Maybe change this
+    # later to wait for some workpiece indicator to appear, but for now this works.
+    # This is hackeneyed, but the page loads the download button before everything
+    # else...
+    time.sleep(10)
+    # input("Please press Enter once the browser shows the page is finished downloading.")
+    # Get the xpath manually by inspecting element in Chrome and right click ->
+    # copy -> xpath
+    download_link = driver.find_element_by_xpath('//*[@id="x-auto-32"]/a')
+    # Downloads the file. The default directory is the "Downloads" directory,
+    # I'm sure there's a way to control it but idk how yet. Anyway, at least it's
+    # predictable.
+    download_link.click()
+    # Wait for the download to finish.
+    # while not os.path exists("/Users/Vishok/Downloads/Awards.xml"):     # OS X
+    while not os.path.exists("/home/student/Downloads/Awards.xml"):       # Linux
+        print('downloading search results...')
+        time.sleep(10)
+    # Clean Up.
+    driver.quit()
+    display.stop()
+
+    filepath = '/home/student/cs122_MVR/data/nsf_tmp/' + output_xml_fn
+    bash_command = "mv /home/student/Downloads/Awards.xml " + filepath
+    subprocess.Popen(bash_command, shell = True)
 
 
-def download_zipfile(url, zip_file_path):
-    '''
-    Download a zip file (containing all award XML files from a single year)
-    '''
-    pattern = r'DownloadFileName=\w*'
-    match = re.search(pattern,url)
-    if match:
-        dl_fn = match.group().strip('DownloadFileName=')
-        dl_fn = zip_file_path + dl_fn
-        return urllib.request.urlretrieve(url, dl_fn)
-    else:
-        print('Incompatible download link')
-        return None
-    # Returns tuple: (dl_fn, headers)
-
-
-def extract_zipfile(zipped_directory, output_directory):
-    '''
-    Extract downloaded zip file to the output directory and delete the
-    zipped directory
-    '''
-    z = zipfile.ZipFile(zipped_directory, 'r')
-    z.extractall(output_directory)
-    z.close()
-    os.remove(zipped_directory)
-
-
-
-url = 'https://www.nsf.gov/awardsearch/advancedSearchResult?\
-        PIId=&\
-        PIFirstName=&\
-        PILastName=&\
-        PIOrganization=&\
-        PIState=&\
-        PIZip=&\
-        PICountry=&\
-        ProgOrganization=&\
-        ProgEleCode=&\
-        BooleanElement=All&\
-        ProgRefCode=&\
-        BooleanRef=All&\
-        Program=&\
-        ProgOfficer=&\
-        Keyword=beaked+whale+acoustics&\
-        AwardNumberOperator=&\
-        AwardAmount=&\
-        AwardInstrument=&\
-        ExpiredAwards=true&\
-        OriginalAwardDateOperator=&\
-        StartDateOperator=&\
-        ExpDateOperator='
-
-soup = get_soup_from_url(url)
-link_list = get_data_links(soup, url)
-print(link_list)
-
-#zip_file_path = '/home/student/cs122_MVR/data/nsf/temp'
-
-#for tmp_link in link_list[0:5]: # <----------- Download 5 most recent years
-#    print('Downloading: ' + tmp_link)
-#    (zip_file, headers) = download_zipfile(tmp_link, zip_file_path)
-#    print('Extracting zipfile: ' + zip_file)
-#    data_file = zip_file.replace('temp', '')
-#    extract_zipfile(zip_file, data_file)
 
 
 
@@ -126,3 +74,7 @@ url = 'https://www.nsf.gov/awardsearch/advancedSearchResult?\
        OriginalAwardDateTo=12%2F31%2F2011&\
        StartDateOperator=&\
        ExpDateOperator='
+
+out = 'test.xml'
+
+download_xml_file_from_search_url(url, out)

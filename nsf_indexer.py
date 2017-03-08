@@ -15,8 +15,8 @@ INDEX_IGNORE = set(['a', 'also', 'an', 'and', 'are', 'as', 'at', 'be',
                     'we', 'were', 'which', 'will', 'with', 'yet'])
 
 
-db_filename = 'nsf.db' # <--- File name of NSF database
-conn = sqlite3.connect('nsf.db')
+db_filename = 'nsf_search.db' # <--- File name of NSF database
+conn = sqlite3.connect(db_filename)
 c = conn.cursor()
 
 c.execute('''CREATE TABLE IF NOT EXISTS keyword_index
@@ -45,7 +45,6 @@ for i, (award_id, tmp_title, tmp_abstract) in enumerate(title_list):
     
         c.execute('''INSERT OR REPLACE INTO keyword_index (award_id, keyword)
                      VALUES ({}, "{}");'''.format(award_id, keyword))
-
 
 print('COMPLETE')
 conn.commit() # Save database
