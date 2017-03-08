@@ -7,12 +7,11 @@ import os
 import bs4
 import sqlite3
 
-import re
-import sys
-import csv
-
-
 def get_list_of_xml_filenames(path):
+    '''
+    Get the filenames of all the XML files (corresponding to individual
+    NSF awards) in the path (folder for a single year's-worth of awards)
+    '''
     file_list = os.listdir(path)
     xml_filenames = []
     for name in file_list:
@@ -22,6 +21,9 @@ def get_list_of_xml_filenames(path):
 
 
 def get_soup_from_xml_filename(fn):
+    '''
+    Convert XML file into a BeautifulSoup object
+    '''
     soup = None
     if fn.endswith('.xml'):
         soup = bs4.BeautifulSoup(open(fn))
@@ -29,6 +31,10 @@ def get_soup_from_xml_filename(fn):
 
 
 def parse_soup(soup):
+    '''
+    Extract all award fields from the BeautifulSoup object and return as a
+    dictionary
+    '''
     award = {}
     tag = soup.find("awardtitle")
     subdivided_tags = ['investigator', 'institution',
@@ -49,6 +55,9 @@ def parse_soup(soup):
 
 
 def parse_subdivided_tag(tag, award_dict):
+    '''
+    Helper function to extract fields from nested tags in award soup
+    '''
     tmp_list = award_dict.get(tag.name, [])
     sub_dict = {}
     child_tags = tag.findChildren()
@@ -61,6 +70,11 @@ def parse_subdivided_tag(tag, award_dict):
 
 
 def init_db(db_filename):
+    '''
+    Initialize the NSF award database, which has the following tables:
+        awards, investigators, institutions, and organizations
+    See sqlite3 commands below to see how these tables are linked.
+    '''
     create_new_tables = True
     if os.path.isfile(db_filename):
         create_new_tables = False
@@ -104,11 +118,15 @@ def init_db(db_filename):
 
 
 def add_award_to_db(award, c):
+    '''
+    Take in a dictionary (award), which contains all of the fields parsed from
+    a single XML file, and insert all fields into the NSF database.
+    '''
     award_id = int(award.get('awardid', None))
     title = award.get('awardtitle', '').\
-            lower().replace('\'', '').replace('\"', '')
+            replace('\'', '').replace('\"', '')
     abstract = award.get('abstractnarration', '').\
-               lower().replace('\'', '').replace('\"', '')
+               replace('\'', '').replace('\"', '')
     amount = int(award.get('awardamount', None))
     start_date = award.get('awardeffectivedate', '')
     end_date = award.get('awardexpirationdate', '')
@@ -157,10 +175,10 @@ def add_award_to_db(award, c):
 # Run script
 ##############################################################################
 
-db_filename = 'nsf.db'
+db_filename = 'nsf.db' # <--- File name of NSF database
 (conn, c) = init_db(db_filename)
 
-years = [2013, 2014, 2015, 2016, 2017]
+years = [2013, 2014, 2015, 2016, 2017] # <--- Years of downloaded NSF data
 
 for year in years:
 
