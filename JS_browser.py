@@ -42,7 +42,7 @@ class JS_browser:
             self._display.start()
         self._driver = webdriver.Chrome()
         if start_link:
-            self.go_to_page(start_link)
+            self.go_to(start_link)
 
     @property
     def source(self):
