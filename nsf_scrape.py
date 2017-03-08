@@ -82,7 +82,7 @@ def init_db(db_filename):
     c = conn.cursor()
     if create_new_tables:
         c.execute('''CREATE TABLE awards
-                    (award_id int,
+                    (award_id text,
                      title text,
                      abstract text,
                      amount int,
@@ -90,7 +90,7 @@ def init_db(db_filename):
                      end_date char(10),
                      constraint pk_awards primary key (award_id));''')
         c.execute('''CREATE TABLE investigators
-                     (award_id int,
+                     (award_id text,
                       last_name text,
                       first_name text,
                       role text,
@@ -98,7 +98,7 @@ def init_db(db_filename):
                       constraint fk_investigators foreign key (award_id)
                       references awards (award_id));''')
         c.execute('''CREATE TABLE institutions
-                     (award_id int,
+                     (award_id text,
                       name text,
                       city text,
                       state text,
@@ -108,7 +108,7 @@ def init_db(db_filename):
                       constraint fk_institutions foreign key (award_id)
                       references awards (award_id));''')
         c.execute('''CREATE TABLE organizations
-                     (award_id int,
+                     (award_id text,
                       organization_code int,
                       directorate text,
                       division text,
