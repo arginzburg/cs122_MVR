@@ -6,16 +6,17 @@
 # either construct the initial database or perform smaller searches to be
 # cached in temporary additions to the database based upon user searches.
 # 
-
 import bs4
 import re
 import requests
 import time
 import pandas as pd
+import subprocess
+import sys
+import os
+import sqlite3
 from populate_TAGG_search import search
 from JS_browser import JS_browser
-from nsf_scrape import init_db
-
 
 def process_results(browser, default_save_path, output_path = None,
     download_element = "", is_simple = False, ext = ".csv",
@@ -37,21 +38,9 @@ def process_results(browser, default_save_path, output_path = None,
     this is really the only use of this function for this project; they are
     made options so that in theory it would be easier to generalize this.
 
-    "check_count" should rarely be used, see comments below.
+    "check_count" prints a warning if 10,000 rows were exported, since this is
+    the maximum value and suggests that some rows were probably excluded
     '''
-    if check_count:
-        # Print a warning if the number of results exceeds 10,000, the maximum
-        # number or results which can be downloaded. This is fine if we are 
-        # using a search to expand the temporary database, in which case there
-        # should be a cap on the number of rows added.
-        # This is sensitive to the inputs of the search, and thus shouldn't
-        # really be used except when downloading the whole database (in which
-        # case the search is known ahead of time).
-        # 
-        count_path =  '//*[@id="mp-pusher"]/div[3]/div/div[3]/div[2]/div[1]/div/div[10]'
-        count_results = int(browser._find(count_path).text)
-        if count_results > 10000:
-            print("WARNING: Returned > 10,000 results for this search.")
     browser.download(download_element, default_save_path, output_path,
                         is_simple = is_simple, ext = ext)
 
@@ -71,14 +60,17 @@ def process_results(browser, default_save_path, output_path = None,
     abstracts_to_df['Abstract'] = [text for text in award_links.values()]
     abstracts = pd.DataFrame(abstracts_to_df)
 
-    grants = pd.read_csv(output_path)
+    grants = pd.read_csv(output_path, encoding ='latin1')
+    if check_count and len(grants.index) == 10000:
+        # Print a warning if the number of results exceeds 10,000, the maximum
+        # number or results which can be downloaded. This is fine if we are 
+        # using a search to expand the temporary database, in which case there
+        # should be a cap on the number of rows added. 
+        print("WARNING: Returned > 10,000 results for this search.")
     # The exporter appears to insert an empty column; remove it.
     grants = grants.drop('Unnamed: 2', axis = 1)
     grants = grants.merge(abstracts, on = "Award Number")
-    # Overwrite the original downloaded file to add the abstracts to it.
-    grants.to_csv(output_path, index = False)
-
-    return None
+    return grants
 
 
 def award_links_from_search(browser, base_url = "https://taggs.hhs.gov"):
@@ -102,7 +94,9 @@ def award_links_from_search(browser, base_url = "https://taggs.hhs.gov"):
     # Check if "next page" button is avaialable
     while browser.element_exists(next_page_img):
         browser.click(next_page_button)
-        time.sleep(10)
+        # Determine necessary loading time based on particular computer and
+        # internet connection speed.
+        time.sleep(5)
         page_award_links = award_links_from_page(browser)
         # Collapse the two dictionaries, preferring entries from the 
         # second - though it shouldn't matter for our usage.
@@ -171,11 +165,164 @@ def stitch_data(output_path, award_links):
     pass
 
 
+def download_awards(years, name, default_save_path, output_path, start_page,
+    download_element, output_files):
+    '''
+    For a given state abbreviation in "name", download the TAGGS data we need
+    to set up the database corresponding to that state. If "name" == "INTL",
+    download data for grants awarded outside the US instead.
+
+    Returns the path of the file to which downloaded data was written.
+    '''
+    output = output_path.format(name)
+    browser = JS_browser(invisible = False, load_wait = 5)
+    browser.go_to(start_page)
+    
+    if name != "INTL":
+        search(browser, years = years, states = [name], intl = False)
+    else:
+        search(browser, years = years, usa = False)
+    
+    award_df = process_results(browser, default_save_path, output,
+                                download_element, check_count = True)
+    print('Downloaded and stored files for grants in {}'.format(name))
+    output_files.append(output)
+    return award_df
+
+
+def add_TAGG_award(row, c):
+    '''
+    Take in a row from a pandas DataFrame which corresponds to an award, and
+    inserts the data for this award into a SQL database for all TAGGS.
+
+    "row" should have the following columns:
+        'OPDIV', 'Recipient Name', 'Recipient Address' 'Recipient City',
+        'Recipient State', 'Recipient ZIP Code', 'Recipient Country',
+        'Award Number', 'Award Title', 'Action Issue Date',
+        'CFDA Program Name', 'Principal Investigator', 'Sum of Actions ',
+        'Abstract'
+
+    "c" should be a cursor for the database to populate
+
+    This is based on MS's function add_award_to_db in nsf_scrape.py to make
+    this database easily added to that one and vice versa.
+    '''
+    award_id = row['Award Number']
+    title = row['Award Title']
+    abstract = row['Abstract']
+    amount = int(row['Sum of Actions '].strip().
+                    replace("$", "").replace(",", ""))
+    # We're mostly interested in the grant awarding process, so the date the
+    # grant was awarded is more important than the starting fiscal year.
+    start_date = row['Action Issue Date']
+    end_date = None # Information not available from TAGGS data
+    c.execute('''INSERT OR REPLACE INTO awards (award_id, title, abstract,
+                amount, start_date, end_date)
+                VALUES (?, ?, ?, ?, ?, ?)''',
+                (award_id, title, abstract, amount, start_date, end_date))
+
+    name = row['Principal Investigator']
+    name_re = re.search('(.+)( \w+$)', name)
+    first_name = name_re.group(1).strip()
+    last_name = name_re.group(2).strip()
+    email = None
+    role = None
+    c.execute('''INSERT OR REPLACE INTO investigators (award_id, last_name,
+                first_name, role, email) VALUES (?, ?, ?, ?, ?)''',
+                (award_id, last_name, first_name, role, email))
+
+    name = row['Recipient Name']
+    address = row['Recipient Address']
+    city = row['Recipient City']
+    state_code = row['Recipient State']
+    zipcode = row['Recipient ZIP Code']
+    country = row['Recipient Country']
+    if country == "United States of America":
+        country = "United States" # Enforce NSF's shorter listing for USA
+    c.execute('''INSERT OR REPLACE INTO institutions (award_id, name, address,
+                 city, state, zipcode, country)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                 (award_id, name, address, city, state_code, zipcode, country))
+
+    organization_code = None
+    directorate = None
+    # Nearest approximation of appropriate data for this field.
+    division = row['CFDA Program Name']
+    c.execute('''INSERT OR REPLACE INTO organizations (award_id,
+                 organization_code, directorate, division)
+                 VALUES (?, ?, ?, ?)''',
+                 (award_id, organization_code, directorate, division))
+
+
+def store_awards(award_df, cursor):
+    '''
+    Simple helper function that implements the row-wise process of taking a
+    dataframe of award data and placing it into the database structure.
+    '''
+    for index, row in award_df.iterrows():
+        add_TAGG_award(row, cursor)
+    print('\tSuccessfully added this data to SQL database.')
+
+
+def init_db(db_filename):
+    '''
+    Initialize the NSF award database, which has the following tables:
+        awards, investigators, institutions, and organizations
+    See sqlite3 commands below to see how these tables are linked.
+
+    Mostly copied from MS's work in scrape_nsf.py. Can't import it because that
+    script contains code at the end outside any function or loop that I don't
+    want to run when this script gets used.
+    '''
+    create_new_tables = not os.path.isfile(db_filename)
+    conn = sqlite3.connect(db_filename)
+    c = conn.cursor()
+    if create_new_tables:
+        c.execute('''CREATE TABLE awards
+                    (award_id text,
+                     title text,
+                     abstract text,
+                     amount int,
+                     start_date char(10),
+                     end_date char(10),
+                     constraint pk_awards primary key (award_id));''')
+        c.execute('''CREATE TABLE investigators
+                     (award_id text,
+                      last_name text,
+                      first_name text,
+                      role text,
+                      email text,
+                      constraint fk_investigators foreign key (award_id)
+                      references awards (award_id));''')
+        c.execute('''CREATE TABLE institutions
+                     (award_id text,
+                      name text,
+                      address text,
+                      city text,
+                      state char(2),
+                      zipcode text,
+                      country text,
+                      constraint fk_institutions foreign key (award_id)
+                      references awards (award_id));''')
+        c.execute('''CREATE TABLE organizations
+                     (award_id text,
+                      organization_code int,
+                      directorate text,
+                      division text,
+                      constraint fk_organizations foreign key (award_id)
+                      references awards (award_id));''')
+    return (conn, c)
+
+
 def setup_database():
     '''
-    If script is run with no arguments, sets up database of CDC and NIH grants.
+    Sets up database of CDC and NIH grants. Runs if this script
+    (collect_TAGG.py) is executed from the terminal.
     '''
-    cursor, connection = init_db("home/student/cs122_MVR/taggs.db")
+    connection, cursor = init_db("/Users/Vishok/Desktop/122/Assignments/Project/taggs.db")
+    # connection, cursor = init_db("home/student/cs122_MVR/taggs.db")
+
+    years = ['2017']
 
     states = ['AL', 'AK', 'AS', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FM', 
                 'FL', 'GA', 'GU', 'HI', 'ID', 'IL', 'IN', 'IA', 'JQ', 'KS',
@@ -185,83 +332,40 @@ def setup_database():
                 'SD', 'TN', 'TX', 'UT', 'VT', 'VI', 'VA', 'WA', 'WV', 'WI',
                 'WY', 'WQ']
 
-    start_page = "https://taggs.hhs.gov/SearchAdv"
-    csv_download_element = '//*[@id="btnExportToCSVSearchAdvExport_AdvSearchFilter"]'
-
     default_save_path = "/Users/Vishok/Downloads/TAGGS Export "
     output_path = "/Users/Vishok/Desktop/TAGGS_{}.csv"
-    output_files = []
-    # default_save_path = "/home/student/Downloads/TAGGS Export " #Linux
+    # default_save_path = "/home/student/Downloads/TAGGS Export "
     # output_path = "home/student/cs122_MVR/data/taggs/TAGGS_{}.csv"
+    output_files = []
+    start_page = "https://taggs.hhs.gov/SearchAdv"
+    download_element = '//*[@id="btnExportToCSVSearchAdvExport_AdvSearchFilter"]'
 
     # Separately download/scrape and format data from each U.S. state.
     for state in states:
-        output = output_path.format(state) 
-        
-        browser = JS_browser(verbose = True, load_wait = 5)
-        browser.go_to(start_page, force_load_wait = None)
-        search(browser, states = [state], intl = False, keywords = "HIV")
-        
-        process_results(browser, default_save_path, output,
-                        csv_download_element)
-        output_files.append(output)
-
+        award_df = download_awards(years, state, default_save_path, output_path,
+                                    start_page, download_element, output_files)
+        store_awards(award_df, cursor)
+        connection.commit() # Save database, in case of weird errors.
     # Download/scrape and format data from grants awarded outside the US.
+    award_df = download_awards(years, "INTL", default_save_path, output_path,
+                                start_page, download_element, output_files)
+    store_awards(award_df, cursor)
 
+    connection.commit() # Save database
+    connection.close()  # Close database
 
+    do_not_clean = input("\nDatabase download/construction complete. You now "
+                            "may choose to keep the CSV files used to create "
+                            "the database, or choose to remove them. To "
+                            "preserve these files input any non-empty string "
+                            "and press ENTER; to delete them input the empty "
+                            "string and press ENTER.\n")
+    if not do_not_clean:
+        for source_file in output_files:
+            bash_command = ("rm {}".format(source_file))
+            subprocess.Popen(bash_command, shell = True)
 
-def add_TAGG_award(award, c):
-    '''
-    Take in a dictionary (award), which contains all of the fields parsed from
-    a single XML file, and insert all fields into the NSF database.
-    '''
-    award_id = int(award.get('awardid', None))
-    title = award.get('awardtitle', '').\
-            replace('\'', '').replace('\"', '')
-    abstract = award.get('abstractnarration', '').\
-               replace('\'', '').replace('\"', '')
-    amount = int(award.get('awardamount', None))
-    start_date = award.get('awardeffectivedate', '')
-    end_date = award.get('awardexpirationdate', '')
-
-    c.execute('''INSERT OR REPLACE INTO awards (award_id, title, abstract,
-                                                amount, start_date, end_date)
-                 VALUES ({}, "{}", "{}", {}, "{}", "{}");'''.format(
-                 award_id, title, abstract, amount, start_date, end_date))
-
-    for inv in award.get('investigator', []):
-        first_name = inv.get('firstname', '').replace('\'', '').replace('\"', '')
-        last_name = inv.get('lastname', '').replace('\'', '').replace('\"', '')
-        email = inv.get('emailaddress', '').replace('\'', '').replace('\"', '')
-        role = inv.get('rolecode', '').replace('\'', '').replace('\"', '')
-
-        c.execute('''INSERT OR REPLACE INTO investigators (award_id, last_name,
-                     first_name, role, email)
-                     VALUES ({}, "{}", "{}", "{}", "{}");'''.format(
-                     award_id, last_name, first_name, role, email))
-
-    for inst in award.get('institution', []):
-        name = inst.get('name', '').replace('\'', '').replace('\"', '')
-        city = inst.get('cityname', '').replace('\'', '').replace('\"', '')
-        state = inst.get('statename', '').replace('\'', '').replace('\"', '')
-        state_code = inst.get('statecode', '').replace('\'', '').replace('\"', '')
-        zipcode = inst.get('zipcode', '').replace('\'', '').replace('\"', '')
-        country = inst.get('countryname', '').replace('\'', '').replace('\"', '')
-
-        c.execute('''INSERT OR REPLACE INTO institutions (award_id, name,
-                     city, state, state_code, zipcode, country)
-                     VALUES ({}, "{}", "{}", "{}", "{}", "{}", "{}");'''.format(
-                     award_id, name, city, state, state_code, zipcode, country))
-
-    for org in award.get('organization', []):
-        organization_code = org.get('code', None)
-        directorate = org.get('directorate', None)
-        division = org.get('division', None)
-
-        c.execute('''INSERT OR REPLACE INTO organizations (award_id,
-                     organization_code, directorate, division)
-                     VALUES ({}, {}, "{}", "{}");'''.format(
-                     award_id, organization_code, directorate, division))
+    print("\nDatabase construction for TAGGS data complete!")
 
 
 if __name__=="__main__":
