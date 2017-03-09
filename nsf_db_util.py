@@ -5,6 +5,7 @@
 
 import sqlite3
 import re
+import string
 import nltk
 from nltk.collocations import *
 
@@ -65,6 +66,20 @@ def get_all_text_from_award_id_list(award_id_list, db_cursor):
     return (title_list, abstract_list)
 
 
+def get_repeated_phrases(title_list, abstract_list):
+    text = '\n'.join(title_list + abstract_list)
+    text = text.replace(string.punctuation, None)
+    tokens = nltk.wordpunct_tokenize(text)
+    finder = TrigramCollocationFinder.from_words(tokens)
+    finder.apply_freq_filter(2)
+    bigram_measures = nltk.collocations.BigramAssocMeasures()
+    trigram_measures = nltk.collocations.TrigramAssocMeasures()
+    scored = finder.score_ngrams(trigram_measures.raw_freq)
+    bigram_list = sorted(bigram for bigram, score in scored)
+    print(bigram_list)
+
+
+
 
 
 db_filename = 'nsf.db' # <--- File name of NSF database
@@ -76,7 +91,8 @@ award_id_set = keyword_search(keyword_list, c)
 award_id_list = list(award_id_set)
 award_id_list = award_id_list[0:3]
 
-get_all_text_from_award_id_list(award_id_list, c)
+(tl, al) = get_all_text_from_award_id_list(award_id_list, c)
+get_repeated_phrases(tl, al)
 
 conn.commit() # Save database
 conn.close() # Close database
