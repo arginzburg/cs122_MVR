@@ -6,6 +6,7 @@
 # either construct the initial database or perform smaller searches to be
 # cached in temporary additions to the database based upon user searches.
 # 
+
 import bs4
 import re
 import requests
@@ -17,6 +18,8 @@ import os
 import sqlite3
 from populate_TAGG_search import search
 from JS_browser import JS_browser
+from selenium.common.exceptions import WebDriverException
+
 
 def process_results(browser, default_save_path, output_path = None,
     download_element = "", is_simple = False, ext = ".csv",
@@ -67,8 +70,6 @@ def process_results(browser, default_save_path, output_path = None,
         # using a search to expand the temporary database, in which case there
         # should be a cap on the number of rows added. 
         print("WARNING: Returned > 10,000 results for this search.")
-    # The exporter appears to insert an empty column; remove it.
-    grants = grants.drop('Unnamed: 2', axis = 1)
     grants = grants.merge(abstracts, on = "Award Number")
     return grants
 
@@ -85,25 +86,28 @@ def award_links_from_search(browser, base_url = "https://taggs.hhs.gov"):
     Award Detail pages, compared to how they are listed on the results page.
     '''
     next_page_button = '''//a[@onclick="ASPx.GVPagerOnClick('GridView','PBN');"]'''
-
     next_page_img = '//img[@alt="Go to next page"]'
     invalid_next_page_img = '//img[@alt="Go to next page - Link Disabled"]'
-
+    loading_icon_img = '//img[@class="dxlp-loadingImage dxlp-imgPosLeft"]'
+    # This flag is useful because the next/back buttons don't appear if the
+    # search results fit on a single page.
+    multiple_pages = False  
     # Get links from Page 1.
     award_links = award_links_from_page(browser)
     # Check if "next page" button is avaialable
     while browser.element_exists(next_page_img):
+        multiple_pages = True
         browser.click(next_page_button)
-        # Determine necessary loading time based on particular computer and
-        # internet connection speed.
-        time.sleep(5)
+        # Wait while the next page loads, if necessary.
+        while browser.element_exists(loading_icon_img):
+            time.sleep(1)
         page_award_links = award_links_from_page(browser)
         # Collapse the two dictionaries, preferring entries from the 
         # second - though it shouldn't matter for our usage.
         award_links = {**award_links, **page_award_links}
     # Sanity check: if there don't appear to be further pages, the next page
     # button should now be invalid.
-    if not browser.element_exists(invalid_next_page_img):
+    if multiple_pages and not browser.element_exists(invalid_next_page_img):
         print("\n WARNING: Thought we reached last page of search results, "
                 "but next page button ambiguous. Try increasing loading "
                 "time allowance.")
@@ -222,9 +226,13 @@ def add_TAGG_award(row, c):
                 (award_id, title, abstract, amount, start_date, end_date))
 
     name = row['Principal Investigator']
-    name_re = re.search('(.+)( \w+$)', name)
-    first_name = name_re.group(1).strip()
-    last_name = name_re.group(2).strip()
+    name_parsed = name.split()
+    if len(name) > 1:
+        first_name = " ".join(name_parsed[:-1])
+        last_name = name_parsed[-1]
+    else:
+        first_name = None
+        last_name = name
     email = None
     role = None
     c.execute('''INSERT OR REPLACE INTO investigators (award_id, last_name,
@@ -314,16 +322,11 @@ def init_db(db_filename):
     return (conn, c)
 
 
-def setup_database():
+def setup_database(year = None):
     '''
     Sets up database of CDC and NIH grants. Runs if this script
     (collect_TAGG.py) is executed from the terminal.
     '''
-    connection, cursor = init_db("/Users/Vishok/Desktop/122/Assignments/Project/taggs.db")
-    # connection, cursor = init_db("home/student/cs122_MVR/taggs.db")
-
-    years = ['2017']
-
     states = ['AL', 'AK', 'AS', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FM', 
                 'FL', 'GA', 'GU', 'HI', 'ID', 'IL', 'IN', 'IA', 'JQ', 'KS',
                 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT',
@@ -331,6 +334,22 @@ def setup_database():
                 'BQ', 'OH', 'OK', 'OR', 'PA', 'PR', 'MH', 'PW', 'RI', 'SC',
                 'SD', 'TN', 'TX', 'UT', 'VT', 'VI', 'VA', 'WA', 'WV', 'WI',
                 'WY', 'WQ']
+
+    if year:
+        years = [year]
+        db_name = "/Users/Vishok/Desktop/122/Assignments/Project/taggs_{}.db".format(
+                    year)
+    else:
+        # All the years to store all data for. However, running the command
+        # to extract these one after the other takes a very long time and is
+        # this not advisable. Running this script five times in parallel
+        # doesn't seem particularly abusive of the website and thus seems like
+        # a better choice. 
+        years = ['2017', '2016', '2015', '2014', '2013']
+        db_name = "/Users/Vishok/Desktop/122/Assignments/Project/taggs.db"
+
+    connection, cursor = init_db(db_name)
+    # connection, cursor = init_db("home/student/cs122_MVR/taggs.db")
 
     default_save_path = "/Users/Vishok/Downloads/TAGGS Export "
     output_path = "/Users/Vishok/Desktop/TAGGS_{}.csv"
@@ -371,9 +390,22 @@ def setup_database():
 if __name__=="__main__":
     num_args = len(sys.argv)
 
-    if not num_args == 1:
-        print("usage: python3 " + sys.argv[0] + "\n Populates initial "
-                "database of CDC and NIH grants.")
+    if not num_args < 2:
+        print("usage: python3 " + sys.argv[0] + "<year>" +
+                "\n Populates initial database of CDC and NIH grants. Year "
+                "input is optional, but if included must be a number between "
+                "1991 and 2017.")
         sys.exit(0)
 
-    setup_database()
+    if num_args == 2:
+        try:
+            validate_input = (int(sys.argv[1]))
+            setup_database(sys.argv[1])
+        except ValueError:
+            print("usage: python3 " + sys.argv[0] + "<year>" +
+                    "\n Populates initial database of CDC and NIH grants. "
+                    "Year input is optional, but if included must be a number "
+                    "between 1991 and 2017.")
+            sys.exit(0)
+    else:
+        setup_database()
