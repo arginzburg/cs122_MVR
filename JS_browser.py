@@ -63,7 +63,7 @@ class JS_browser:
         prefs = {"download.default_directory" : self._save_path}
         chrome_options.add_experimental_option("prefs", prefs)
         if is_VM():
-            chromedriver = "/usr/bin/chromedriver "
+            chromedriver = "/usr/bin/chromedriver"
         else:
             chromedriver = "/usr/local/bin/chromedriver"
         self._driver = webdriver.Chrome(executable_path = chromedriver, chrome_options = chrome_options)
