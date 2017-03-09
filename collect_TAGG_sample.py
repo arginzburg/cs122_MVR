@@ -344,7 +344,7 @@ def setup_database(year = None, verbose = True):
     Sets up database of CDC and NIH grants. Runs if this script
     (collect_TAGG.py) is executed from the terminal.
     '''
-    states = ['AR', 'CO', 'DE', 'ID', 'KS', 'MT', 'NV', 'OR', 'SC', 'WY', 'WQ']
+    states = ['AR', 'CO', 'DE', 'NV', 'OR']
 
     if is_VM():
         db_name = "home/student/cs122_MVR/taggs{}.db"
