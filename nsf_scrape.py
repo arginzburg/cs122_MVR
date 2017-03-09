@@ -75,9 +75,7 @@ def init_db(db_filename):
         awards, investigators, institutions, and organizations
     See sqlite3 commands below to see how these tables are linked.
     '''
-    create_new_tables = True
-    if os.path.isfile(db_filename):
-        create_new_tables = False
+    create_new_tables = not os.path.isfile(db_filename)
     conn = sqlite3.connect(db_filename)
     c = conn.cursor()
     if create_new_tables:
@@ -100,9 +98,9 @@ def init_db(db_filename):
         c.execute('''CREATE TABLE institutions
                      (award_id text,
                       name text,
+                      address text,
                       city text,
-                      state text,
-                      state_code char(2),
+                      state char(2),
                       zipcode text,
                       country text,
                       constraint fk_institutions foreign key (award_id)
@@ -133,8 +131,8 @@ def add_award_to_db(award, c):
 
     c.execute('''INSERT OR REPLACE INTO awards (award_id, title, abstract,
                                                 amount, start_date, end_date)
-                 VALUES ({}, "{}", "{}", {}, "{}", "{}");'''.format(
-                 award_id, title, abstract, amount, start_date, end_date))
+                 VALUES (?, ?, ?, ?, ?, ?);''',
+                 (award_id, title, abstract, amount, start_date, end_date))
 
     for inv in award.get('investigator', []):
         first_name = inv.get('firstname', '').replace('\'', '').replace('\"', '')
@@ -144,21 +142,21 @@ def add_award_to_db(award, c):
 
         c.execute('''INSERT OR REPLACE INTO investigators (award_id, last_name,
                      first_name, role, email)
-                     VALUES ({}, "{}", "{}", "{}", "{}");'''.format(
-                     award_id, last_name, first_name, role, email))
+                     VALUES (?, ?, ?, ?, ?);''',
+                     (award_id, last_name, first_name, role, email))
 
     for inst in award.get('institution', []):
         name = inst.get('name', '').replace('\'', '').replace('\"', '')
         city = inst.get('cityname', '').replace('\'', '').replace('\"', '')
-        state = inst.get('statename', '').replace('\'', '').replace('\"', '')
         state_code = inst.get('statecode', '').replace('\'', '').replace('\"', '')
         zipcode = inst.get('zipcode', '').replace('\'', '').replace('\"', '')
         country = inst.get('countryname', '').replace('\'', '').replace('\"', '')
+        address = inst.get('streetaddress', '').replace('\'', '').replace('\"', '')
 
         c.execute('''INSERT OR REPLACE INTO institutions (award_id, name,
-                     city, state, state_code, zipcode, country)
-                     VALUES ({}, "{}", "{}", "{}", "{}", "{}", "{}");'''.format(
-                     award_id, name, city, state, state_code, zipcode, country))
+                     city, address, state, zipcode, country)
+                     VALUES (?, ?, ?, ?, ?, ?, ?);''',
+                     (award_id, name, city, address, state_code, zipcode, country))
 
     for org in award.get('organization', []):
         organization_code = org.get('code', None)
@@ -167,31 +165,29 @@ def add_award_to_db(award, c):
 
         c.execute('''INSERT OR REPLACE INTO organizations (award_id,
                      organization_code, directorate, division)
-                     VALUES ({}, {}, "{}", "{}");'''.format(
-                     award_id, organization_code, directorate, division))
+                     VALUES (?, ?, ?, ?);''',
+                     (award_id, organization_code, directorate, division))
 
 
 ##############################################################################
 # Run script
 ##############################################################################
 
-db_filename = 'nsf.db' # <--- File name of NSF database
-(conn, c) = init_db(db_filename)
+def run_hardcoded():
+    db_filename = 'nsf.db' # <--- File name of NSF database
+    (conn, c) = init_db(db_filename)
 
-years = [2013, 2014, 2015, 2016, 2017] # <--- Years of downloaded NSF data
+    years = [2017] #[2013, 2014, 2015, 2016, 2017] # <--- Years of downloaded NSF data
 
-for year in years:
+    for year in years:
+        data_path = 'data/nsf/{}/'.format(year)
+        xml_list = get_list_of_xml_filenames(data_path)
+        print('Processing path: ' + data_path)
+        for xml_file in xml_list:
+            soup = get_soup_from_xml_filename(xml_file)
+            award_dict = parse_soup(soup)
+            add_award_to_db(award_dict, c)
+        print('Completed path: ' + data_path)
 
-    data_path = 'data/nsf/{}/'.format(year)
-
-    xml_list = get_list_of_xml_filenames(data_path)
-
-    print('Processing path: ' + data_path)
-    for xml_file in xml_list:
-        soup = get_soup_from_xml_filename(xml_file)
-        award_dict = parse_soup(soup)
-        add_award_to_db(award_dict, c)
-    print('Completed path: ' + data_path)
-
-conn.commit() # Save database
-conn.close() # Close database
+    conn.commit() # Save database
+    conn.close() # Close database
