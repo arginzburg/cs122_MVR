@@ -187,7 +187,7 @@ def download_awards(years, name, download_path, default_save_path, output_path,
     Returns the path of the file to which downloaded data was written.
     '''
     output = output_path.format(name)
-    browser = JS_browser(download_path, invisible = False, verbose = verbose)
+    browser = JS_browser(download_path, invisible = True, verbose = verbose)
     browser.go_to(start_page)
     
     if name != "INTL":
@@ -344,19 +344,13 @@ def setup_database(year = None, verbose = True):
     Sets up database of CDC and NIH grants. Runs if this script
     (collect_TAGG.py) is executed from the terminal.
     '''
-    states = ['AL', 'AK', 'AS', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FM', 
-                'FL', 'GA', 'GU', 'HI', 'ID', 'IL', 'IN', 'IA', 'JQ', 'KS',
-                'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT',
-                'MQ', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'MP',
-                'BQ', 'OH', 'OK', 'OR', 'PA', 'PR', 'MH', 'PW', 'RI', 'SC',
-                'SD', 'TN', 'TX', 'UT', 'VT', 'VI', 'VA', 'WA', 'WV', 'WI',
-                'WY', 'WQ']
+    states = ['AR', 'CO', 'DE', 'ID', 'KS', 'MT', 'NV', 'OR', 'SC', 'WY', 'WQ']
 
     if is_VM():
         db_name = "home/student/cs122_MVR/taggs{}.db"
         download_path = "home/student/cs122_MVR/data/taggs{}/"
     else:
-        db_name = "/Users/Vishok/Desktop/122/Assignments/Project/taggs{}.db"
+        db_name = "/Users/Vishok/Desktop/122/Assignments/Project/sample_taggs{}.db"
         download_path = "/Users/Vishok/Desktop/122/Assignments/Project/data/taggs{}/"
 
     if year:

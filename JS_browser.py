@@ -24,45 +24,67 @@ import time
 import signal
 import subprocess
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, WebDriverException
+from selenium.common.exceptions import NoSuchElementException, WebDriverException, StaleElementReferenceException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 from pyvirtualdisplay import Display
+from check_os import is_VM
 
 
 class JS_browser:
 
-    def __init__(self, invisible = True, start_link = False, load_wait = 10,
-                 download_wait = 600, verbose = False):
+    def __init__(self, save_path, invisible = True, start_link = False,
+        download_wait = 600, verbose = False):
         '''
         Open a web browser, optionally navigating to a page. This browser can
         be used to click on elements within the page, which is particularly
         useful for clicking download links or check boxes and then taking some
         actions afterwards.
+        Must include valid folder in "save_path" to specify where the downloads
+        will go, preferably one that's empty before this class is used to do
+        anything.
         '''
         self._invisible = invisible
         self._verbose = verbose
-        self._load_wait = self._validate_time(load_wait, 10)
         self._download_wait = self._validate_time(download_wait, 600)
+        self._save_path = save_path
 
         if self._invisible:
             self._display = Display(visible = 0, size = (800, 600))
             self._display.start()
-        self._driver = webdriver.Chrome()
+        
+        # Set the default download directory, since we can't rely on a dialog
+        # box to control the location to which files download.
+        #
+        # http://stackoverflow.com/questions/36982639/changing-default-download-location-in-chrome-using-python-selenium
+        chrome_options = webdriver.ChromeOptions()
+        prefs = {"download.default_directory" : self._save_path}
+        chrome_options.add_experimental_option("prefs", prefs)
+        if is_VM():
+            chromedriver = "/usr/bin/chromedriver "
+        else:
+            chromedriver = "/usr/local/bin/chromedriver"
+        self._driver = webdriver.Chrome(executable_path = chromedriver, chrome_options = chrome_options)
+        
+        # Selenium functionality to a number of seconds for page elements to
+        # appear if not immediately present when a function looks for them.
         self._driver.implicitly_wait(10)
+        
         if start_link:
             self.go_to(start_link)
 
 
-    def _validate_time(self, user_input, default, allow_false = False):
+    def _validate_time(self, user_input, default):
         '''
-        Check that a user input to be used as a time to wait or timeout some
-        action has a valid (numeric) value. If setting a timeout value, we
-        might want to allow the value to be "False", i.e., no timeout.
+        Check that a user input to be used as a download timeout has a valid
+        (numeric) value or is "False".
         '''
-        if allow_false and user_input is False:
+        if user_input is False:
             return user_input
         if user_input is None:
             return default
-
         if not isinstance(user_input, (int, float)) or user_input < 0:
             if self._verbose:
                 print("Error: Invalid wait time or timeout specification. "
@@ -73,15 +95,14 @@ class JS_browser:
             return user_input
 
 
-    def go_to(self, link, force_load_wait = None):
+    def go_to(self, link):
         '''
         Within the browser, navigate to the webpage at "link" and allow a delay
-        time for the page to load.
+        time for the page's JavaScript elements to load.
         '''
-        load_wait = self._validate_time(force_load_wait, self._load_wait)
         try:
             self._driver.get(link)
-            time.sleep(load_wait)
+            self.wait_for_page_to_load()
             if self._verbose:
                 print("Loaded new page successfully.")
         except WebDriverException:
@@ -89,16 +110,61 @@ class JS_browser:
                 print("Loading page failed. Check link is valid.")
  
 
-    def click(self, element, force_load_wait = None):
+    def wait_for_page_to_load(self):
+        '''
+        Checks for an element on the page that indicates some JavaScript
+        element is loading, which means other desired actions should wait.
+        '''
+        loading_icon_path = '//img[@class="dxlp-loadingImage dxlp-imgPosLeft"]'
+        # Note that this says "find_elements", not "find_element"
+        loading_icons = self._driver.find_elements_by_xpath(loading_icon_path)
+        not_loaded = True
+        while not_loaded:
+            try:
+                while any([icon.is_displayed() for icon in loading_icons]):
+                    time.sleep(1)
+                not_loaded = False
+            except StaleElementReferenceException:
+                # Occasionally there are issues if these references haven't
+                # been updated.
+                loading_icons = self._driver.find_elements_by_xpath(loading_icon_path)
+
+
+    def wait_for_clickable(self, element):
+        '''
+        Waits up to a minute for an element on a page to become clickable, if
+        it is not already (e.g., if a "next page" button isn't clickable while
+        the page is loading something.)
+
+        Based on:
+        http://stackoverflow.com/questions/28110008/python-selenium-wait-until-element-is-clickable-not-working
+        '''
+        wait_element = WebDriverWait(self._driver, 60).until(
+                            EC.element_to_be_clickable((By.XPATH, element)))
+
+
+    def element_exists(self, element):
+        '''
+        Returns True if an element exists on current page at given XPath, False
+        otherwise. Similar to _find, but returns True/False instead of the
+        element itself.
+        '''
+        try:
+            self._driver.find_element_by_xpath(element)
+            return True
+        except NoSuchElementException:
+            return False
+
+
+    def click(self, element):
         '''
         Within the browser, click an element and allow some time for the page
         to respond. Specify the element to be clicked via XPath.
         '''
-        load_wait = self._validate_time(force_load_wait, self._load_wait)
         button = self._find(element)
         if button:
             button.click()
-            time.sleep(load_wait)
+            self.wait_for_page_to_load()
 
 
     def enter_text(self, element, text):
@@ -111,19 +177,6 @@ class JS_browser:
             field.click()   # Note this is not the JS_browser click method
             field.clear()   # Remove any pre-existing text from field
             field.send_keys(text)
-
-
-    def element_exists(self, element):
-        '''
-        Returns True if an element exists on current page at given XPath, False
-        otherwise. Similar to _find, but doesn't print any message if the
-        element is absent.
-        '''
-        try:
-            self._driver.find_element_by_xpath(element)
-            return True
-        except NoSuchElementException:
-            return False
         
 
     def _find(self, element):
@@ -135,9 +188,6 @@ class JS_browser:
             button = self._driver.find_element_by_xpath(element)
             return button
         except NoSuchElementException:
-            if self._verbose:
-                print("Couldn't locate element with XPath {}. ".format(element)
-                      + "\nMaybe increase loading time?")
             return None
 
 
@@ -148,18 +198,22 @@ class JS_browser:
         preventing user input until the download is complete. Optionally
         attempt to move the completed download file to a location specified
         by the user. "default_save_path" is the filepath the browser downloads
-        to by default (e.g., Chromium on the Linux VMs saves downloads to
-        "/home/student/Downloads/" so if we wish to click a link that downloads
-        a file called "Awards.xml" the default_save_path should be
-        "/home/student/Downloads/Awards.xml"; unfortunately this has to be
-        empirical). By default this is set to timeout downloads after 10
-        minutes, which can help avoid infinite loops caused by mistyping file
-        paths.
+        to based on the value of "save_path" when constructing the browser
+        instance and the procedure the webpage uses for generating a download
+        file name (this has to be empirically determined). By default this is
+        set to timeout downloads after 10 minutes, which can help avoid
+        infinite loops caused by mistyping file paths.
+
+        "is_simple" == False and "ext" != None should be used when a web page
+        includes unpredictable strings in the file names for downloads; in such
+        cases default_save_path should be the predictable prefix for this file
+        name and ext should be the extension of the file type to be downloaded.
         '''
-        if is_simple and os.path.exists(default_save_path):
+        if os.path.exists(default_save_path):
             # Default save path occupied. foo.txt will be downloaded as
             # foo(1).txt, etc. depending on how many similarly-named files are
-            # in the default download location.
+            # in the default download location; we need to know to look for
+            # the file where it will end up.
             try_name = default_save_path.replace(".", "({}).")
             i = 1
             while os.path.exists(try_name.format(i)):
@@ -168,8 +222,7 @@ class JS_browser:
 
         if force_dowload_wait:
             max_time = self._validate_time(force_dowload_wait,
-                                            self._dowload_wait,
-                                            allow_false = True)
+                                            self._dowload_wait)
         else:
             max_time = self._download_wait
 
@@ -230,9 +283,10 @@ class JS_browser:
         '''
         if is_simple:
             while not os.path.exists(filepath):
-                time.sleep(10)
+                time.sleep(1)
                 if self._verbose:
-                    print("\n Waiting for download to finish...")
+                    print("\n Waiting for download to finish at {}".format(
+                            filepath))
             return None
         else:
             # is_simple = False is used when the web interface inserts
@@ -250,9 +304,10 @@ class JS_browser:
                       "careful when using this option. \n")
             while len(list_of_possible_dl_files) < 1:
                 # periodically check for the presence of the completed download
-                time.sleep(10)
-                if self.verbose:
-                    print("\n Waiting for download to finish...")
+                time.sleep(1)
+                if self._verbose:
+                    print("\n Waiting for download to finish at {}".format(
+                            filepath))
                 list_of_possible_dl_files = glob.glob(filepath + '*' + ext)
             return list_of_possible_dl_files[0]
 
@@ -281,7 +336,7 @@ class JS_browser:
         '''
         Screenshot the web browser, saving PNG to "output_filename".png in
         current directory unless alternative is specified. Only accepts
-        absolute filepaths.
+        absolute filepaths. Useful for troubleshooting headless browsers.
         '''
         valid = self._driver.save_screenshot(directory + "/" + output_filename)
         if self._verbose and valid:

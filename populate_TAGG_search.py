@@ -8,16 +8,16 @@
 
 import time
 
-def search(browser, years = ['2017'],
-    divisions = ['NIH', 'CDC'], states = [], usa = True , intl = True,
-    keywords = ""):
+
+def search(browser, years = [], divisions = ['NIH', 'CDC'], states = [],
+    usa = True , intl = True, keywords = ""):
     select_report_columns(browser)
     select_fiscal_years(browser, years)
     select_operating_divisions(browser, divisions)
     select_states(browser, states)
     select_region(browser, usa, intl)
     select_keywords(browser, keywords)
-    time.sleep(1)
+    browser.wait_for_page_to_load()
     browser.click('//*[@id="btn_AdvSearch_CD"]') # Click the "Search" button.
 
 
@@ -43,7 +43,7 @@ def select_report_columns(browser):
                     '//*[@id="cbl_Columns_RB3_I"]',  # - CFDA Program Number
                     '//*[@id="cbl_Columns_RB19_I"]'] # + Principal Investigator
     for path in delta_paths:
-        browser.click(path, force_load_wait = 0)
+        browser.click(path)
 
 
 def select_fiscal_years(browser, years = []):
@@ -63,10 +63,13 @@ def select_fiscal_years(browser, years = []):
     # dictionary, but not so important in the grand scheme of things.
     year_path_dict = option_path_dict(options, paths)
     # 2017 is checked when the page loads. Rectify this.
-    browser.click(year_path_dict["2017"], force_load_wait = 0)
+    browser.click(year_path_dict["2017"])
     for year in years:
-        browser.click(year_path_dict[str(year)], force_load_wait = 0)
-    time.sleep(10)   # Give other fields/boxes time to reload in response.
+        browser.click(year_path_dict[str(year)])
+    # Setting year resets some of the other fields. Give everyting time to
+    # reload in response.
+    browser.wait_for_page_to_load()
+    time.sleep(3)
 
 
 def select_operating_divisions(browser, divisions = []):
@@ -86,7 +89,7 @@ def select_operating_divisions(browser, divisions = []):
     division_path_dict = option_path_dict(options, paths)
 
     for division in divisions:
-        browser.click(division_path_dict[division], force_load_wait = 0)
+        browser.click(division_path_dict[division])
 
 
 def select_states(browser, states = []):
@@ -112,7 +115,7 @@ def select_states(browser, states = []):
     state_path_dict = option_path_dict(options, paths)
 
     for state in states:
-        browser.click(state_path_dict[state], force_load_wait = 0)
+        browser.click(state_path_dict[state])
 
 
 def select_region(browser, usa = True, intl = True):
@@ -130,10 +133,10 @@ def select_region(browser, usa = True, intl = True):
         intl_paths = ['//*[@id="lst_Countries_LBI{}C"]/input'.format(x)
                         for x in range(0, 211) if x != 197]
         if usa:
-            browser.click(USofA_path, force_load_wait = 0)
+            browser.click(USofA_path)
         if intl:
             for path in intl_paths:
-                browser.click(path, force_load_wait = 0)
+                browser.click(path)
 
 
 def select_keywords(browser, keywords):
