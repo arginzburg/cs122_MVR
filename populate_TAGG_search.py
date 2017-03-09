@@ -8,7 +8,7 @@
 
 import time
 
-def search(browser, years = ['2017', '2016', '2015', '2014', '2013'],
+def search(browser, years = ['2017'],
     divisions = ['NIH', 'CDC'], states = [], usa = True , intl = True,
     keywords = ""):
     select_report_columns(browser)
