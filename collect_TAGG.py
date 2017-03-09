@@ -115,7 +115,7 @@ def award_links_from_search(browser, base_url = "https://taggs.hhs.gov",
         page_award_links = award_links_from_page(browser, base_url, verbose)
         # Collapse the two dictionaries, preferring entries from the 
         # second - though it shouldn't matter for our usage.
-        award_links = {**award_links, **page_award_links}
+        award_links.update(page_award_links)
     # Sanity check: if there don't appear to be further pages, the next page
     # button should now be invalid.
     if (verbose and

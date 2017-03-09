@@ -187,7 +187,7 @@ def download_awards(years, name, download_path, default_save_path, output_path,
     Returns the path of the file to which downloaded data was written.
     '''
     output = output_path.format(name)
-    browser = JS_browser(download_path, invisible = True, verbose = verbose)
+    browser = JS_browser(download_path, invisible = False, verbose = verbose)
     browser.go_to(start_page)
     
     if name != "INTL":
@@ -344,10 +344,10 @@ def setup_database(year = None, verbose = True):
     Sets up database of CDC and NIH grants. Runs if this script
     (collect_TAGG.py) is executed from the terminal.
     '''
-    states = ['AR', 'CO', 'DE', 'NV', 'OR']
+    states = ['AL']
 
     if is_VM():
-        db_name = "home/student/cs122_MVR/taggs{}.db"
+        db_name = "home/student/cs122_MVR/sample_taggs{}.db"
         download_path = "home/student/cs122_MVR/data/taggs{}/"
     else:
         db_name = "/Users/Vishok/Desktop/122/Assignments/Project/sample_taggs{}.db"
@@ -371,7 +371,7 @@ def setup_database(year = None, verbose = True):
     # values, it seems appropriate.
     if not os.path.exists(download_path):
         os.makedirs(download_path)
-    output_path = download_path + "TAGGS_{}.csv"
+    output_path = download_path + "TAGGS_sample_{}.csv"
     default_save_path = download_path + "TAGGS Export "
     
     connection, cursor = init_db(db_name)
