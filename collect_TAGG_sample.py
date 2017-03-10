@@ -391,9 +391,9 @@ def setup_database(year = None, verbose = True):
     # I chose not to wrap this code and the contents of the loop directly above
     # this because the resulting function would have an absurd number of
     # parameters.
-    # award_df = download_awards(years, "INTL", default_save_path, output_path,
-    #                             start_page, download_element, output_files,
-    #                             verbose)
+    # award_df = download_awards(years, "INTL", download_path,
+    #                             default_save_path, output_path, start_page,
+    #                             download_element, output_files, verbose)
     # store_awards(award_df, cursor, verbose)
     # connection.commit() # Save database
 
