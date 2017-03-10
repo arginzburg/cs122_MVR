@@ -1,8 +1,9 @@
 # NSF Database Utility
 #
-# Mark Saddler
+# Mark Saddler / MVR
 #
 
+import sys
 import sqlite3
 import re
 import string
@@ -15,7 +16,7 @@ def keyword_search(keyword_list, db_cursor=None):
         keyword_list (list of strings) : list of keywords to search for
         db_cursor (SQLite3 Cursor) : Cursor object for nsf.db
     Returns:
-        award_id_set (set of integers) : set of award_id integers corresponding
+        award_id_set (set of strings) : set of award_id strings corresponding
             to awards in the NSF database that match all keywords
     '''
     id_dict = {}
@@ -36,7 +37,7 @@ def keyword_search(keyword_list, db_cursor=None):
 def get_fields_from_award_id(award_id, fields, db_cursor):
     '''
     Inputs:
-        award_id (integer)
+        award_id (string)
         fields (list of strings) : column names in awards table
         db_cursor (sqlite3 cursor) : points to database with awards table
     Returns:
@@ -55,6 +56,16 @@ def get_fields_from_award_id(award_id, fields, db_cursor):
 
 def get_all_text_from_award_id_list(award_id_list, db_cursor):
     '''
+    Returns a list of all titles and a list of all abstracts for the
+    list of awards specified by 'award_id_list'.
+
+    Inputs:
+        award_id_list (list of strings) : award_id strings from which
+                                          to fetch text
+        db_cursor (sqlite3 cursor) : points to database
+    Returns:
+        title_list (list of strings)
+        abstract_list (list of strings)
     '''
     title_list = []
     abstract_list = []
@@ -66,48 +77,66 @@ def get_all_text_from_award_id_list(award_id_list, db_cursor):
     return (title_list, abstract_list)
 
 
-def get_repeated_phrases(title_list, abstract_list):
+def get_repeated_trigrams(title_list, abstract_list, min_rep):
     text = '\n'.join(title_list + abstract_list)
-    text = text.replace(string.punctuation, None)
+    text = re.sub(r'[{}]'.format(string.punctuation), '', text)
     tokens = nltk.wordpunct_tokenize(text)
     finder = TrigramCollocationFinder.from_words(tokens)
-    finder.apply_freq_filter(2)
-    bigram_measures = nltk.collocations.BigramAssocMeasures()
+    finder.apply_freq_filter(min_rep)
     trigram_measures = nltk.collocations.TrigramAssocMeasures()
     scored = finder.score_ngrams(trigram_measures.raw_freq)
-    bigram_list = sorted(bigram for bigram, score in scored)
-    print(bigram_list)
+    trigram_list = sorted(trigram for trigram, score in scored)
+    return trigram_list
+
+
+def search_database_for_trigrams(db_filename, keyword_list, min_rep = 2):
+    conn = sqlite3.connect(db_filename)
+    c = conn.cursor()
+
+    award_id_set = keyword_search(keyword_list, c)
+    award_id_list = list(award_id_set)
+
+    (t_list, a_list) = get_all_text_from_award_id_list(award_id_list, c)
+    trigrams = get_repeated_trigrams(t_list, a_list, min_rep)
+    return trigrams
+
+    #
+    # Do something with trigrams
+    #
+    #
+
+    conn.commit() # Save database
+    conn.close() # Close database
+
+
+if __name__=="__main__":
+
+    #
+    # This is mainly for debugging. Feel free to remove and import this file to use
+    # its functions
+    #
+
+    num_args = len(sys.argv)
+
+    usage = ("usage: python3 " + sys.argv[0] + " <database.db> <term1> <term2> ..." +
+                 '\n\tPlease provide database filename and \
+                  \n\tkeywords to search for (separated by space)')
+
+    if num_args > 2:
+        db_filename = sys.argv[1]
+        keyword_list = sys.argv[2:num_args]
+        trigrams = search_database_for_trigrams(db_filename, keyword_list)
+        print(trigrams)
+        
+    else:
+        print(usage)
+        sys.exit(0)
 
 
 
-
-
-db_filename = 'nsf.db' # <--- File name of NSF database
-conn = sqlite3.connect('nsf.db')
-c = conn.cursor()
-
-keyword_list = ['structural', 'biochemistry']
-award_id_set = keyword_search(keyword_list, c)
-award_id_list = list(award_id_set)
-award_id_list = award_id_list[0:3]
-
-(tl, al) = get_all_text_from_award_id_list(award_id_list, c)
-get_repeated_phrases(tl, al)
-
-conn.commit() # Save database
-conn.close() # Close database
-
-
-
-
-
-
-
-
-
-#
+###########################################################################################
 #   RETIRED CODE
-#
+#    (was supposed to be a faster method of searching for keywords)
 
 def keyword_search_nested(keyword_list, db_cursor=None):
     '''
