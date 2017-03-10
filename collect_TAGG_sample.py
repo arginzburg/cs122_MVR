@@ -347,8 +347,8 @@ def setup_database(year = None, verbose = True):
     states = ['AL']
 
     if is_VM():
-        db_name = "home/student/cs122_MVR/sample_taggs{}.db"
-        download_path = "home/student/cs122_MVR/data/taggs{}/"
+        db_name = "/home/student/cs122_MVR/sample_taggs{}.db"
+        download_path = "/home/student/cs122_MVR/data/taggs{}/"
     else:
         db_name = "/Users/Vishok/Desktop/122/Assignments/Project/sample_taggs{}.db"
         download_path = "/Users/Vishok/Desktop/122/Assignments/Project/data/taggs{}/"
