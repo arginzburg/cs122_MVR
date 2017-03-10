@@ -187,7 +187,7 @@ def download_awards(years, name, download_path, default_save_path, output_path,
     Returns the path of the file to which downloaded data was written.
     '''
     output = output_path.format(name)
-    browser = JS_browser(download_path, invisible = False, verbose = verbose)
+    browser = JS_browser(download_path, verbose = verbose)
     browser.go_to(start_page)
     
     if name != "INTL":
@@ -391,11 +391,11 @@ def setup_database(year = None, verbose = True):
     # I chose not to wrap this code and the contents of the loop directly above
     # this because the resulting function would have an absurd number of
     # parameters.
-    award_df = download_awards(years, "INTL", default_save_path, output_path,
-                                start_page, download_element, output_files,
-                                verbose)
-    store_awards(award_df, cursor, verbose)
-    connection.commit() # Save database
+    # award_df = download_awards(years, "INTL", default_save_path, output_path,
+    #                             start_page, download_element, output_files,
+    #                             verbose)
+    # store_awards(award_df, cursor, verbose)
+    # connection.commit() # Save database
 
     connection.close()  # Close database
     do_not_clean = input("\nDatabase download/construction complete. You now "
