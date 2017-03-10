@@ -136,7 +136,11 @@ if __name__=="__main__":
 
 ###########################################################################################
 #   RETIRED CODE
+<<<<<<< HEAD
 #    (was supposed to be a faster method of searching for keywords)
+=======
+#       (was supposed to be a faster method of searching for keywords)
+>>>>>>> database_utility : includes keyword searcher and trigram finder
 
 def keyword_search_nested(keyword_list, db_cursor=None):
     '''
