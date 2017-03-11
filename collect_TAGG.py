@@ -239,8 +239,11 @@ def add_TAGG_award(row, c):
                 (award_id, title, abstract, amount, start_date, end_date))
 
     name = row['Principal Investigator']
-    name_parsed = name.split()
-    if len(name) > 1:
+    if isinstance(name, str):
+        name_parsed = name.split()
+    else:
+        name_parsed = None
+    if name_parsed and len(name_parsed) > 1:
         first_name = " ".join(name_parsed[:-1])
         last_name = name_parsed[-1]
     else:
