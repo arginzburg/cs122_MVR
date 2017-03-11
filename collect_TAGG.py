@@ -244,6 +244,9 @@ def add_TAGG_award(row, c):
     else:
         name_parsed = None
     if name_parsed and len(name_parsed) > 1:
+        # If only one name is listed, place it into the first and last name
+        # fields since we can't easily tell which has been omitted or how to
+        # categorize a single name if there has been no omission.
         first_name = " ".join(name_parsed[:-1])
         last_name = name_parsed[-1]
     else:
