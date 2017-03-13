@@ -164,4 +164,3 @@ if __name__=="__main__":
   search_xml_file = "/home/student/cs122_MVR/Awards.xml"
   db_filename = 'nsf_search.db' # <--- File name of temp NSF search database
   run_search_scraper(search_xml_file, db_filename)
-
