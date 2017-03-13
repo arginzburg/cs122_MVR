@@ -1,4 +1,5 @@
 # Vishok Srikanth
+# early version testing how to download NSF search results
 
 import os
 import bs4
@@ -19,10 +20,12 @@ import sqlite3
 from JS_browser import JS_browser
 
 link_to_visit = "https://www.nsf.gov/awardsearch/advancedSearchResult?PIId&PIFirstName&PILastName&PIOrganization&PIState&PIZip&PICountry&ProgOrganization&ProgEleCode&BooleanElement=All&ProgRefCode&BooleanRef=All&Program&ProgOfficer&Keyword=retina%20connectomics&AwardNumberOperator&AwardAmount&AwardInstrument&ActiveAwards=true&OriginalAwardDateOperator&StartDateOperator&ExpDateOperator"
-xml_download_element = '//*[@id="x-auto-32"]/a'
-default_save_path = "/home/student/Downloads/Awards.xml"
-output_path = "/home/student/cs122_MVR/Awards.xml"
 
-browser = JS_browser(start_link = link_to_visit)
-browser.download(xml_download_element, default_save_path, output_path)
-browser.cleanup()
+def download_nsf_search(url, ):
+    xml_download_element = '//a[@title="Export as XML"]/'
+    default_save_path = "/home/student/Downloads/Awards.xml"
+    output_path = "/home/student/cs122_MVR/Awards.xml"
+
+    browser = JS_browser(start_link = link_to_visit)
+    browser.download(xml_download_element, default_save_path, output_path)
+    browser.cleanup()

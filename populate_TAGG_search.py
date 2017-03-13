@@ -9,11 +9,17 @@
 import time
 
 
-def search(browser, years = [], divisions = ['NIH', 'CDC'], states = [],
+def search(browser, years = [], agency = ['NIH', 'CDC'], states = [],
     usa = True , intl = True, keywords = ""):
+    '''
+    Makes a series of calls to other functions in this file to populate all the
+    relevant fields of the TAGGS Advanced Search pages and then click the
+    search button to navigate a JS_browser instance to the first page of the
+    search results.
+    '''
     select_report_columns(browser)
     select_fiscal_years(browser, years)
-    select_operating_divisions(browser, divisions)
+    select_operating_divisions(browser, agency)
     select_states(browser, states)
     select_region(browser, usa, intl)
     select_keywords(browser, keywords)
