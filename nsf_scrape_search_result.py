@@ -2,9 +2,12 @@
 #
 # Mark Saddler
 #
+
 import os
 import bs4
 import sqlite3
+
+
 def get_soup_from_xml_filename(fn):
     '''
     Convert XML file into a BeautifulSoup object
@@ -13,19 +16,24 @@ def get_soup_from_xml_filename(fn):
     if fn.endswith('.xml'):
         soup = bs4.BeautifulSoup(open(fn))
     return soup
+
+
 def parse_soup(soup):
     '''
     '''
     award_dict_list = []
     award_soup_list = soup.findAll('award')
+
     for award_soup in award_soup_list:
-        award =}
+        award = {}
         tag = award_soup.find("awardnumber")
         while not tag is None:
             award[tag.name] = tag.text.strip()
             tag = tag.next_sibling.next_sibling
         award_dict_list.append(award)
     return award_dict_list
+
+
 def init_db(db_filename):
     '''
     '''
@@ -70,24 +78,28 @@ def init_db(db_filename):
                       constraint fk_organizations foreign key (award_id)
                       references awards (award_id));''')
     return (conn, c)
+
+
 def add_award_to_db(award, c):
     '''
     Take in a dictionary (award), which contains all of the fields parsed from
     a single XML file, and insert all fields into the NSF database.
     '''
     award_id = int(award.get('awardnumber', None))
-    title = award.get('title', '')
-            replace('', '').replace('', '')
-    abstract = award.get('abstract', '')
-               replace('', '').replace('', '')
+    title = award.get('title', '').\
+            replace('\'', '').replace('\"', '')
+    abstract = award.get('abstract', '').\
+               replace('\'', '').replace('\"', '')
     amount = int(award.get('awardedamounttodate', None))
     start_date = award.get('startdate', '')
     end_date = award.get('enddate', '')
+
     c.execute('''INSERT OR REPLACE INTO awards (award_id, title, abstract,
                                                 amount, start_date, end_date)
                  VALUES (?, ?, ?, ?, ?, ?);''',
                  (award_id, title, abstract, amount, start_date, end_date))
-    name = award.get('principalinvestigator', '').replace('', '').replace('', '')
+
+    name = award.get('principalinvestigator', '').replace('\'', '').replace('\"', '')
     if isinstance(name, str):
         name_parsed = name.split()
     else:
@@ -101,29 +113,36 @@ def add_award_to_db(award, c):
     else:
         first_name = None
         last_name = name
-    email = award.get('piemailaddress', '').replace('', '').replace('', '')
+    email = award.get('piemailaddress', '').replace('\'', '').replace('\"', '')
     role = 'PI'
+
     c.execute('''INSERT OR REPLACE INTO investigators (award_id, last_name,
                      first_name, role, email)
                      VALUES (?, ?, ?, ?, ?);''',
                      (award_id, last_name, first_name, role, email))
-    name = award.get('organization', '').replace('', '').replace('', '')
-    city = award.get('organizationcity', '').replace('', '').replace('', '')
-    state_code = award.get('organizationstate', '').replace('', '').replace('', '')
-    zipcode = award.get('organizationzip', '').replace('', '').replace('', '')
+
+    name = award.get('organization', '').replace('\'', '').replace('\"', '')
+    city = award.get('organizationcity', '').replace('\'', '').replace('\"', '')
+    state_code = award.get('organizationstate', '').replace('\'', '').replace('\"', '')
+    zipcode = award.get('organizationzip', '').replace('\'', '').replace('\"', '')
     country = ''
-    address = award.get('organizationstreet', '').replace('', '').replace('', '')
+    address = award.get('organizationstreet', '').replace('\'', '').replace('\"', '')
+
     c.execute('''INSERT OR REPLACE INTO institutions (award_id, name,
                  city, address, state, zipcode, country)
                  VALUES (?, ?, ?, ?, ?, ?, ?);''',
                  (award_id, name, city, address, state_code, zipcode, country))
+
     organization_code = None
     directorate = award.get('nsfdirectorate', None)
     division = award.get('nsforganization', None)
+
     c.execute('''INSERT OR REPLACE INTO organizations (award_id,
                      organization_code, directorate, division)
                      VALUES (?, ?, ?, ?);''',
                      (award_id, organization_code, directorate, division))
+
+
 def run_search_scraper(search_xml_file, db_filename):
     '''
     '''
@@ -135,9 +154,12 @@ def run_search_scraper(search_xml_file, db_filename):
     print('Completed parsing file: ' + search_xml_file)
     conn.commit() # Save database
     conn.close() # Close database
+
+
 ##############################################################################
 # Run script
 ##############################################################################
+
 search_xml_file = "/home/student/cs122_MVR/Awards.xml"
 db_filename = 'nsf_search.db' # <--- File name of temp NSF search database
-run_search_scraper(search_xml_file, db_filename)}
+run_search_scraper(search_xml_file, db_filename)

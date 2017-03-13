@@ -3,6 +3,7 @@
 # Mark Saddler
 #
 
+import sys
 import os
 import bs4
 import sqlite3
@@ -173,11 +174,8 @@ def add_award_to_db(award, c):
 # Run script
 ##############################################################################
 
-def run_hardcoded():
-    db_filename = 'nsf.db' # <--- File name of NSF database
+def run_scraper(years, db_filename):
     (conn, c) = init_db(db_filename)
-
-    years = [2017] #[2013, 2014, 2015, 2016, 2017] # <--- Years of downloaded NSF data
 
     for year in years:
         data_path = 'data/nsf/{}/'.format(year)
@@ -191,3 +189,25 @@ def run_hardcoded():
 
     conn.commit() # Save database
     conn.close() # Close database
+
+
+if __name__=="__main__":
+
+    num_args = len(sys.argv)
+
+    usage = ("usage: python3 " + sys.argv[0] + "<database.db> <Year1> <Year2> ..." +
+            "\n\t Builds NSF database by scraping downloaded XML files. \
+             \n\t Specify database file name and years of NSF data to scrape. \
+             \t .XML files must be found in paths of the form 'data/nsf/<Year>'")
+
+    if num_args < 3:
+        print(usage)
+        sys.exit(0)
+    else:
+        db_filename = sys.argv[1]
+        years = []
+        for idx in range(2, num_args):
+            years.append(int(sys.argv[idx]))
+        print(years, db_filename)
+        run_scraper(years, db_filename)
+    

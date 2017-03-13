@@ -93,7 +93,7 @@ def execute_search(search):
     if "NSF" in search["agency"]:
         url = generate_nsf_GET(search)
         nsf_count, nsf_path = download_nsf_search(url, download_path)
-        # run_search_scraper(nsf_path, temp_name)
+        run_search_scraper(nsf_path, temp_name)
         subprocess.Popen("rm {}".format(nsf_path), shell = True)
     if "CDC" in search["agency"] or "NIH" in search["agency"]:
         sub_search = search.copy()
