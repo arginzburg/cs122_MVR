@@ -14,7 +14,7 @@ def get_soup_from_xml_filename(fn):
     '''
     soup = None
     if fn.endswith('.xml'):
-        soup = bs4.BeautifulSoup(open(fn))
+        soup = bs4.BeautifulSoup(open(fn), "lxml")
     return soup
 
 
@@ -37,7 +37,7 @@ def parse_soup(soup):
 def init_db(db_filename):
     '''
     '''
-    print('PREPARING DATABASE: ', db_filename)
+    # print('PREPARING DATABASE: ', db_filename)
     create_new_tables = True
     if os.path.isfile(db_filename):
         create_new_tables = False
@@ -151,7 +151,7 @@ def run_search_scraper(search_xml_file, db_filename):
     award_dict_list = parse_soup(soup)
     for award_dict in award_dict_list:
         add_award_to_db(award_dict, c)
-    print('Completed parsing file: ' + search_xml_file)
+    # print('Completed parsing file: ' + search_xml_file)
     conn.commit() # Save database
     conn.close() # Close database
 
@@ -159,7 +159,7 @@ def run_search_scraper(search_xml_file, db_filename):
 ##############################################################################
 # Run script
 ##############################################################################
-
-search_xml_file = "/home/student/cs122_MVR/Awards.xml"
-db_filename = 'nsf_search.db' # <--- File name of temp NSF search database
-run_search_scraper(search_xml_file, db_filename)
+if __name__=="__main__":
+  search_xml_file = "/home/student/cs122_MVR/Awards.xml"
+  db_filename = 'nsf_search.db' # <--- File name of temp NSF search database
+  run_search_scraper(search_xml_file, db_filename)

@@ -494,7 +494,7 @@ def setup_database(years = [], verbose = True, temporary = False, usa = True,
         connection.close()  # Close database
         # Output_files should have length 1 when temporary = True, since only
         # a single search is performed.
-        bash_command = ("rm {}".format(default_save_path))
+        bash_command = ("rm {}".format(output_path))
         subprocess.Popen(bash_command, shell = True)
         return count
 
