@@ -9,6 +9,9 @@ import re
 import string
 import nltk
 from nltk.collocations import *
+from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk.stem.porter import PorterStemmer
 
 def keyword_search(keyword_list, db_cursor=None):
     '''
@@ -77,19 +80,24 @@ def get_all_text_from_award_id_list(award_id_list, db_cursor):
     return (title_list, abstract_list)
 
 
-def get_repeated_trigrams(title_list, abstract_list, min_rep):
+def get_repeated_trigrams(title_list, abstract_list, min_rep, max_return):
     text = '\n'.join(title_list + abstract_list)
     text = re.sub(r'[{}]'.format(string.punctuation), '', text)
     tokens = nltk.wordpunct_tokenize(text)
-    finder = TrigramCollocationFinder.from_words(tokens)
+    words = [w for w in tokens if not w in stopwords.words('english')]
+    finder = TrigramCollocationFinder.from_words(words)
     finder.apply_freq_filter(min_rep)
     trigram_measures = nltk.collocations.TrigramAssocMeasures()
     scored = finder.score_ngrams(trigram_measures.raw_freq)
-    trigram_list = sorted(trigram for trigram, score in scored)
+
+    trigram_list = [(trigram, score) for trigram, score in scored]
+    trigram_list = sorted(trigram_list, key = lambda x: x[1])
+    trigram_list = [trigram for trigram, score in trigram_list]
+    trigram_list = trigram_list[0: min(max_return, len(trigram_list))]
     return trigram_list
 
 
-def search_database_for_trigrams(db_filename, keyword_list, min_rep = 2):
+def search_database_for_trigrams(db_filename, keyword_list, min_rep = 2, max_return = 50):
     conn = sqlite3.connect(db_filename)
     c = conn.cursor()
 
@@ -97,7 +105,7 @@ def search_database_for_trigrams(db_filename, keyword_list, min_rep = 2):
     award_id_list = list(award_id_set)
 
     (t_list, a_list) = get_all_text_from_award_id_list(award_id_list, c)
-    trigrams = get_repeated_trigrams(t_list, a_list, min_rep)
+    trigrams = get_repeated_trigrams(t_list, a_list, min_rep, max_return)
     return trigrams
 
     #
@@ -126,7 +134,9 @@ if __name__=="__main__":
         db_filename = sys.argv[1]
         keyword_list = sys.argv[2:num_args]
         trigrams = search_database_for_trigrams(db_filename, keyword_list)
-        print(trigrams)
+        print('= == === ==== RESULTS ==== === == =')
+        for t in trigrams:
+            print(t)
         
     else:
         print(usage)

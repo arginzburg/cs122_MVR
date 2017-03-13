@@ -7,6 +7,8 @@ import sys
 import os
 import sqlite3
 import re
+#import nltk # <-- used for an older version
+#from nltk.corpus import stopwords # <-- used for an older version
 
 INDEX_IGNORE = set(['a', 'also', 'an', 'and', 'are', 'as', 'at', 'be',
                     'but', 'by', 'for', 'from', 'how', 'i',
@@ -37,11 +39,14 @@ def add_and_populate_index_table(db_filename):
 
     for i, (award_id, tmp_title, tmp_abstract) in enumerate(title_list):
 
-        tmp_str = tmp_title + ' ' + tmp_abstract
-        tmp_str = re.sub(r'[^\w\s]', '', tmp_str)
+        text = tmp_title + ' ' + tmp_abstract
+        text = re.sub(r'[^\w\s]', '', text)
 
-        words = set(tmp_str.split())
+        words = set(text.split())
         words = [w.strip() for w in words if w.strip() not in INDEX_IGNORE]
+
+        #tokens = nltk.wordpunct_tokenize(text)
+        #words = [w for w in tokens if not w in stopwords.words('english')]
 
         for w in words:
             if w.isupper():
