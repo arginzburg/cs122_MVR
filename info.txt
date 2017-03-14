@@ -1,0 +1,8 @@
+To use the website:
+
+Run the server from the proj_site directory. Navigate to <local base url>/plot/ to access the 
+index page. From there, fill out the fields with the values you desire and press submit to recieve your search results.
+
+The comments in the .py files throughout the respository explain each file's usage and outputs.
+
+MVR
