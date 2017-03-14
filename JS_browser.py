@@ -10,7 +10,7 @@
     # install selenium, pyvirtualdisplay
         # sudo pip3 install selenium pyvirtualdisplay
     # install xvfb and chromium
-        # sudo apt-get updtae
+        # sudo apt-get update
         # sudo apt-get install xvfb chromium-browser
     # install older version of chromedriver manually:
         # Linux:https://chromedriver.storage.googleapis.com/index.html?path=2.26/
