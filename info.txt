@@ -6,3 +6,21 @@ index page. From there, fill out the fields with the values you desire and press
 The comments in the .py files throughout the respository explain each file's usage and outputs.
 
 MVR
+
+
+
+
+
+DATA SCRAPING:
+
+NSF
+(1) run nsf_download_data.py (hardcoded to download 5 years)
+(2) run nsf_scrape.py ("python3 nsf_scrape.py nsf.db 2013 2014 2015 2016 2017")
+(3) run database_indexer.py ("python3 database_indexer.py nsf.db")
+
+TAGGs (CDC + NIH)
+(1)
+(2) .... Vishok's steps here
+(3)
+
+stitch_databases.py (hardcoded to combine all 5 years)

@@ -470,8 +470,8 @@ def setup_database(years = [], verbose = True, temporary = False, usa = True,
     # setup thereof.
     else:
         if is_VM():
-            db_name = "home/student/cs122_MVR/data/data/temp/temp.db"
-            download_path = "home/student/cs122_MVR/data/temp/"
+            db_name = "/home/student/cs122_MVR/data/data/temp/temp.db"
+            download_path = "/home/student/cs122_MVR/data/temp/"
         else:
             db_name = "/Users/Vishok/Desktop/122/Assignments/Project/data/temp/temp.db"
             download_path = "/Users/Vishok/Desktop/122/Assignments/Project/data/temp/"
