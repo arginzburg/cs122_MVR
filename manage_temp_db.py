@@ -111,7 +111,7 @@ def execute_search(search):
     cache_cursor = cache_conn.cursor()
     # Fill out the counter and copy rows in "temp" to "cache"    
     counter = check_counter(cache_cursor)
-    add_new_rows(temp_cursor, counter, cache_name)
+    add_new_rows(temp_cursor, counter, temp_name, cache_cursor)
     temp_conn.close()
     subprocess.Popen("rm {}".format(temp_name), shell = True)
 
@@ -304,7 +304,7 @@ def check_counter(cache_cursor):
         return 0    
 
 
-def add_new_rows(temp_cursor, counter, cache_name):
+def add_new_rows(temp_cursor, counter, temp_name, cache_cursor):
     '''
     Populates the "record_counter" table in the temp database, then attaches
     the temporary database to the main one and copies over the rows.
@@ -321,10 +321,10 @@ def add_new_rows(temp_cursor, counter, cache_name):
     # Attach the temporary database to the main one, and copy over values.
     # Based on:
     # http://stackoverflow.com/questions/8215686/python-bulk-select-then-insert-from-one-db-to-another
-    temp_cursor.execute('ATTACH "{}" AS cache'.format(cache_name))
+    cache_cursor.execute('ATTACH "{}" AS tempdb'.format(temp_name))
     for table in table_list:
-        temp_cursor.execute('''INSERT INTO cache.{}
-                                SELECT * FROM {};'''.format(table, table))
+        cache_cursor.execute('''INSERT INTO main.{}
+                                SELECT * FROM tempdb.{};'''.format(table, table))
     return None
 
 
@@ -343,6 +343,6 @@ def clean_old_rows(cache_cursor, counter):
 
 # A sample "search" dictionary that gives a reasonable number of results
 # for quick testing and manual corroboration.
-# search = {"years" : ["2012"], "US_awards" : True,
-#             "keywords" : "HIV virus immunology",
-#             "agency" : ["NSF", "NIH", "CDC"]}
+search = {"years" : ["2012"], "US_awards" : True,
+            "keywords" : "HIV virus immunology",
+            "agency" : ["NSF", "NIH", "CDC"]}

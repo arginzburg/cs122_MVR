@@ -410,8 +410,8 @@ def setup_database(years = [], verbose = True, temporary = False, usa = True,
     # For setup of databases to be stored permanently.
     if not temporary:
         if is_VM():
-            db_name = "home/student/cs122_MVR/taggs{}.db"
-            download_path = "home/student/cs122_MVR/data/taggs{}/"
+            db_name = "/home/student/cs122_MVR/taggs{}.db"
+            download_path = "/home/student/cs122_MVR/data/taggs{}/"
         else:
             db_name = "/Users/Vishok/Desktop/122/Assignments/Project/taggs{}.db"
             download_path = "/Users/Vishok/Desktop/122/Assignments/Project/data/taggs{}/"
