@@ -1,0 +1,23 @@
+<h1>Create Query</h1>
+<form action="{% url 'plot:index' %}" method="post">
+{% csrf_token %}
+<label for='amount'>Award Amount (USD)</label><br />
+<input type='text' name='amount' id='amount' value='' />
+<br /><br />
+<label for='start'>Starting Date (mm/yyyy)</label><br />
+<input type='date' name='start' id='start' value='' />
+<br /><br />
+<label for='end'>Ending Date (mm/yyyy)</label><br />
+<input type='date' name='end' id='end' value='' />
+<br />
+
+
+
+<input type="submit" value="Submit Queries" />
+</form>
+
+
+
+
+
+
