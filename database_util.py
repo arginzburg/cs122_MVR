@@ -97,7 +97,13 @@ def get_repeated_trigrams(title_list, abstract_list, min_rep, max_return):
     return trigram_list
 
 
-def search_database_for_trigrams(db_filename, keyword_list, min_rep = 2, max_return = 50):
+def tf_idf(tgram, abstract_list):
+
+    tf = TfidfVectorizer(analyzer='word', ngram_range=(3,3), min_df = 0, stop_words = 'english')
+    tf.transform(abstract_list)
+
+
+def search_database_for_trigrams(db_filename, keyword_list, min_rep = 3, max_return = 50):
     conn = sqlite3.connect(db_filename)
     c = conn.cursor()
 
@@ -105,7 +111,9 @@ def search_database_for_trigrams(db_filename, keyword_list, min_rep = 2, max_ret
     award_id_list = list(award_id_set)
 
     (t_list, a_list) = get_all_text_from_award_id_list(award_id_list, c)
+
     trigrams = get_repeated_trigrams(t_list, a_list, min_rep, max_return)
+
     return trigrams
 
     #
