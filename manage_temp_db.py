@@ -128,9 +128,9 @@ def generate_file_paths():
     downloaded files based on system on which function is run.
     '''
     if is_VM():
-        temp_name = "home/student/cs122_MVR/data/temp/temp.db"
-        cache_name = "home/student/cs122_MVR/cached.db"
-        download_path = "home/student/cs122_MVR/data/temp/"
+        temp_name = "/home/student/cs122_MVR/data/temp/temp.db"
+        cache_name = "/home/student/cs122_MVR/cached.db"
+        download_path = "/home/student/cs122_MVR/data/temp/"
     else:
         temp_name = "/Users/Vishok/Desktop/122/Assignments/Project/data/temp/temp.db"
         cache_name = "/Users/Vishok/Desktop/122/Assignments/Project/cached.db"
