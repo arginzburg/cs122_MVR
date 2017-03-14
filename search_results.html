@@ -1,0 +1,26 @@
+<style>
+table, th, td {
+    border: 1px solid black;
+}
+</style>
+<h1>Search Results</h1>
+<a href="{% url 'plot:index' %}">Home</a>
+<p>Number of Grants Found: {{ num }}<p>
+<p>Total Value of Grants Found: {{ total }}<p>
+<br />
+<table>
+    <tr>
+        <th>Title</th>
+        <th>Amount</th>
+        <th>Start Date</th>
+    </tr>
+    {% for award in results %}
+    <tr>
+        <td>{{ award.title }}</td>
+        <td>{{ award.amount }}</td>
+        <td>{{ award.start_date }}</td>
+    </tr>
+    {% endfor %}
+<table>
+
+<a href="{% url 'plot:index' %}">Home</a>
