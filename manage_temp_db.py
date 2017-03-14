@@ -343,6 +343,6 @@ def clean_old_rows(cache_cursor, counter):
 
 # A sample "search" dictionary that gives a reasonable number of results
 # for quick testing and manual corroboration.
-search = {"years" : ["2012"], "US_awards" : True,
-            "keywords" : "HIV virus immunology",
-            "agency" : ["NSF", "NIH", "CDC"]}
+# search = {"years" : ["2012"], "US_awards" : True,
+#             "keywords" : "HIV virus immunology",
+#             "agency" : ["NSF", "NIH", "CDC"]}
