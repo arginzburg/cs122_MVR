@@ -1,17 +1,23 @@
 To use the website:
 
-Run the server from the proj_site directory. Navigate to <local base url>/plot/ to access the 
-index page. From there, fill out the fields with the values you desire and press submit to recieve your search results.
+Run the server from the proj_site directory. Navigate to <local base url>/plot/
+to access the  index page. From there, fill out the fields with the values you
+desire and press submit to recieve your search results.
 
-The comments in the .py files throughout the respository explain each file's usage and outputs.
+The comments in the .py files throughout the respository explain each file's
+usage and outputs.
 
 MVR
 
 
-
-
-
 DATA SCRAPING:
+Databases with the last five years' worth of data from NSF and CDC/NIH data are
+already downloaded. Since the final database used by the website is stitched
+together by a separate script, you can run these for yourself to see how they
+work (since this will only modify files that were used to make that database
+and not the website's source database itself). That said, running them to
+completion may take an extremely long time, so we recommend testing them for a
+little bit and then interrupting them.
 
 NSF
 (1) run nsf_download_data.py (hardcoded to download 5 years)
@@ -19,8 +25,45 @@ NSF
 (3) run database_indexer.py ("python3 database_indexer.py nsf.db")
 
 TAGGs (CDC + NIH)
-(1)
-(2) .... Vishok's steps here
-(3)
+To test, run collect_TAGG.py with a specific year specified, e.g.,
+"python3 collect_TAGG.py 2017". This carries out the scraping and database
+input steps in one script; when I did the actual data collection, I ran the
+script in parallel for all five years of data to be collected, because even
+collecting the data for a single year took several days of continuously running
+the script. Currently the script is set to show the web browser scraping as it
+occurs and to print messages to the console indicating progress; changing
+"verbose" to false in lines 434 and 449 will stop the printing of messages,
+while changing "invisible" to true in line 191 will run the browser headlessly.
+The database_indexer.py script was called on all five of the databases produced
+in this manner after the downloads were complete.
 
-stitch_databases.py (hardcoded to combine all 5 years)
+Since the Django website expects to refer to a single database, 
+stitch_databases.py (hardcoded to combine all 5 years) was used to combine the
+databases created by scraping NSF and TAGGS data.
+
+
+CACHING OF USER SEARCHES: 
+This task was not implemented in the Django frontend of the webpage, but the
+backend code to actively search additional years of NSF and TAGGS data based on
+a few basic user search parameters and return a database similar in structure
+to the permanently stored grant data is contained in manage_temp_db.py, (which
+imports other functions designed to allow this functionality). The expected
+inputs are described in the file, but broadly this was designed to have two
+functions with which the webpage could interact directly: get_counts_for_search
+produces the number of NSF, TAGGS, and total grants returned from a user search
+- which could inform the user if the search was insufficiently specific by
+checking that the total number of results was less than 1000 (the implemented
+maximum number of grants to store for a particular search), and execute_search
+actually scrapes the data from search results and places them in a database
+called cached.db in the project's home directory - this database has the same
+structure as the website's regular database, except that every table has a
+column linking records to a counter for the search that returned them.
+execute_search returns the number of NSF and TAGGS records collected, along
+with the counter associated with the search just performed, automatically
+performing the tasks of clearing out records in the cached database which are
+> 20 searches old. Since the counter for the search is returned, the website
+could have stored this counter along with the user search dictionary, and
+referred to a list of search dictionaries : search counters to grab results
+from the cached database in case a future user search matched one in the
+cached database.
+
